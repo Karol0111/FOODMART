@@ -2,20 +2,30 @@ import datetime
 from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
+from django.db.models import Sum
+from django.utils import timezone
 from restaurant.models import (
     Category, FoodItem, RestaurantTable,
-    TableReservation, Order, OrderItem, CustomerProfile
+    TableReservation, Order, OrderItem, CustomerProfile, Payment
 )
 
 
 class Command(BaseCommand):
     help = "Seed database with initial categories, food items, tables, demo users, orders, and reservations."
 
-    def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.NOTICE("Seeding FoodMart data..."))
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--reset',
+            action='store_true',
+            help='Reset dynamic data (reservations, orders, payments) and refresh with current dates and accurate totals'
+        )
+
+    def handle(self, *args, **options):
+        reset_mode = options.get('reset', False)
+        self.stdout.write(self.style.NOTICE(f"Seeding FoodMart data (reset={reset_mode})..."))
 
         # 1. Create Admin User
-        admin_user, created = User.objects.get_or_create(
+        admin_user, admin_created = User.objects.get_or_create(
             username="admin",
             defaults={
                 "email": "admin@foodmart.com",
@@ -25,15 +35,15 @@ class Command(BaseCommand):
                 "is_superuser": True,
             }
         )
-        if created:
+        if admin_created:
             admin_user.set_password("admin123")
             admin_user.save()
             self.stdout.write(self.style.SUCCESS("Created admin user: admin / admin123"))
         else:
             self.stdout.write("Admin user already exists.")
 
-        # 2. Create Customer User
-        customer_user, created = User.objects.get_or_create(
+        # 2. Create Customer User & Profile
+        customer_user, customer_created = User.objects.get_or_create(
             username="customer",
             defaults={
                 "email": "customer@gmail.com",
@@ -41,20 +51,26 @@ class Command(BaseCommand):
                 "last_name": "Sharma",
             }
         )
-        if created:
+        if customer_created:
             customer_user.set_password("customer123")
             customer_user.save()
-            CustomerProfile.objects.get_or_create(
-                user=customer_user,
-                defaults={
-                    "phone": "+91 98765 12345",
-                    "address": "Flat 402, Sunshine Heights, MG Road",
-                    "city": "Mumbai",
-                }
-            )
             self.stdout.write(self.style.SUCCESS("Created customer user: customer / customer123"))
+        else:
+            self.stdout.write("Customer user already exists.")
 
-        # 3. Create Categories
+        # Always ensure customer profile exists (even if user already existed)
+        cust_profile, prof_created = CustomerProfile.objects.get_or_create(
+            user=customer_user,
+            defaults={
+                "phone": "+91 98765 12345",
+                "address": "Flat 402, Sunshine Heights, MG Road",
+                "city": "Mumbai",
+            }
+        )
+        if prof_created:
+            self.stdout.write(self.style.SUCCESS("Created profile for customer user."))
+
+        # 3. Create Categories (with unique beverages image)
         categories_data = [
             {
                 "name": "Starters & Appetizers",
@@ -84,13 +100,14 @@ class Command(BaseCommand):
                 "name": "Beverages & Drinks",
                 "icon": "fa-martini-glass-citrus",
                 "description": "Chilled coolers, exotic mocktails, and fresh natural fruit smoothies.",
-                "image_url": "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=600&q=80"
+                "image_url": "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=600&q=80"
             },
         ]
 
         cat_map = {}
+        cats_created = 0
         for c in categories_data:
-            cat_obj, _ = Category.objects.get_or_create(
+            cat_obj, c_created = Category.objects.get_or_create(
                 name=c["name"],
                 defaults={
                     "icon": c["icon"],
@@ -99,7 +116,15 @@ class Command(BaseCommand):
                     "is_active": True,
                 }
             )
+            # Update image if it was pointing to duplicate or stale URL
+            if cat_obj.image_url != c["image_url"]:
+                cat_obj.image_url = c["image_url"]
+                cat_obj.save()
             cat_map[c["name"]] = cat_obj
+            if c_created:
+                cats_created += 1
+
+        self.stdout.write(self.style.SUCCESS(f"Categories verified: {len(categories_data)} total ({cats_created} newly created)."))
 
         # 4. Create Food Items
         food_items_data = [
@@ -290,9 +315,11 @@ class Command(BaseCommand):
             },
         ]
 
+        items_created = 0
+        items_dict = {}
         for item in food_items_data:
             cat_obj = cat_map[item["category"]]
-            FoodItem.objects.get_or_create(
+            f_obj, f_created = FoodItem.objects.get_or_create(
                 name=item["name"],
                 defaults={
                     "category": cat_obj,
@@ -306,8 +333,13 @@ class Command(BaseCommand):
                     "calories": item["calories"],
                 }
             )
+            items_dict[item["name"]] = f_obj
+            if f_created:
+                items_created += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Created {len(food_items_data)} food items across {len(categories_data)} categories."))
+        self.stdout.write(self.style.SUCCESS(
+            f"Food items verified: {len(food_items_data)} total ({items_created} newly created, {len(food_items_data) - items_created} existing)."
+        ))
 
         # 5. Create Restaurant Tables
         tables_data = [
@@ -329,109 +361,247 @@ class Command(BaseCommand):
             )
             table_objs.append(t_obj)
 
-        self.stdout.write(self.style.SUCCESS(f"Created {len(tables_data)} restaurant dining tables."))
+        self.stdout.write(self.style.SUCCESS(f"Created/verified {len(tables_data)} restaurant dining tables."))
 
-        # 6. Create Sample Orders
-        sample_items = list(FoodItem.objects.all()[:4])
-        if sample_items and not Order.objects.exists():
-            # Order 1: Delivered
-            order1 = Order.objects.create(
-                user=customer_user,
-                customer_name="Rahul Sharma",
-                customer_email="customer@gmail.com",
-                customer_phone="+91 98765 12345",
-                delivery_address="Flat 402, Sunshine Heights, MG Road",
-                delivery_city="Mumbai",
-                delivery_notes="Leave with security at main gate",
-                total_amount=Decimal("640.00"),
-                delivery_fee=Decimal("30.00"),
-                payment_method="UPI",
-                payment_status="PAID",
-                order_status="DELIVERED",
-                delivery_person_name="Vikram Singh",
-                delivery_person_phone="+91 98111 22334",
-                estimated_delivery_time="Delivered in 28 mins"
-            )
-            OrderItem.objects.create(
-                order=order1,
-                food_item=sample_items[0],
-                food_name=sample_items[0].name,
-                food_price=sample_items[0].price,
-                quantity=1,
-                subtotal=sample_items[0].price
-            )
-            OrderItem.objects.create(
-                order=order1,
-                food_item=sample_items[1],
-                food_name=sample_items[1].name,
-                food_price=sample_items[1].price,
-                quantity=1,
-                subtotal=sample_items[1].price
-            )
+        # 6. Create or Reset Sample Orders
+        if reset_mode:
+            self.stdout.write(self.style.WARNING("Reset mode active: removing old demo orders..."))
+            Order.objects.all().delete()
 
-            # Order 2: Out for delivery
-            order2 = Order.objects.create(
-                user=customer_user,
-                customer_name="Rahul Sharma",
-                customer_email="customer@gmail.com",
-                customer_phone="+91 98765 12345",
-                delivery_address="Flat 402, Sunshine Heights, MG Road",
-                delivery_city="Mumbai",
-                delivery_notes="Ring doorbell twice",
-                total_amount=Decimal("710.00"),
-                delivery_fee=Decimal("30.00"),
-                payment_method="CARD",
-                payment_status="PAID",
-                order_status="OUT_FOR_DELIVERY",
-                delivery_person_name="Aman Gupta",
-                delivery_person_phone="+91 98222 33445",
-                estimated_delivery_time="10 - 15 mins away"
-            )
-            OrderItem.objects.create(
-                order=order2,
-                food_item=sample_items[2],
-                food_name=sample_items[2].name,
-                food_price=sample_items[2].price,
-                quantity=2,
-                subtotal=sample_items[2].price * 2
-            )
+        # Check and repair existing orders if their total_amount doesn't match item subtotals
+        existing_orders = Order.objects.all()
+        for ord_obj in existing_orders:
+            actual_subtotal = ord_obj.items.aggregate(s=Sum('subtotal'))['s']
+            if actual_subtotal is not None and actual_subtotal > Decimal('0.00') and ord_obj.total_amount != actual_subtotal:
+                self.stdout.write(f"Reconciling Order #{ord_obj.order_number}: ₹{ord_obj.total_amount} -> ₹{actual_subtotal}")
+                ord_obj.total_amount = actual_subtotal
+                ord_obj.save()
+                if ord_obj.payments.exists():
+                    for pay in ord_obj.payments.all():
+                        pay.amount = ord_obj.grand_total
+                        pay.save()
 
-            # Order 3: In Kitchen / Preparing
-            order3 = Order.objects.create(
-                user=None,
-                customer_name="Priya Patel",
-                customer_email="priya@example.com",
-                customer_phone="+91 99887 76655",
-                delivery_address="B-12, Green Park Avenue",
-                delivery_city="Mumbai",
-                delivery_notes="Extra spicy please",
-                total_amount=Decimal("380.00"),
-                delivery_fee=Decimal("30.00"),
-                payment_method="COD",
-                payment_status="PENDING",
-                order_status="PREPARING",
-                estimated_delivery_time="25 - 30 mins"
-            )
-            OrderItem.objects.create(
-                order=order3,
-                food_item=sample_items[3],
-                food_name=sample_items[3].name,
-                food_price=sample_items[3].price,
-                quantity=1,
-                subtotal=sample_items[3].price
-            )
-            self.stdout.write(self.style.SUCCESS("Created 3 demo orders with OrderItems."))
+        # If orders are thin (< 6 orders), seed comprehensive orders covering ALL 6 statuses & 5 categories
+        if Order.objects.count() < 6:
+            self.stdout.write("Seeding rich sample orders across all statuses and categories...")
+            
+            orders_specs = [
+                # 1. DELIVERED (Rahul Sharma, UPI) - Starters
+                {
+                    "user": customer_user,
+                    "customer_name": "Rahul Sharma",
+                    "customer_email": "customer@gmail.com",
+                    "customer_phone": "+91 98765 12345",
+                    "delivery_address": "Flat 402, Sunshine Heights, MG Road",
+                    "delivery_city": "Mumbai",
+                    "delivery_notes": "Leave with security at main gate",
+                    "payment_method": "UPI",
+                    "payment_status": "PAID",
+                    "order_status": "DELIVERED",
+                    "delivery_person_name": "Vikram Singh",
+                    "delivery_person_phone": "+91 98111 22334",
+                    "estimated_delivery_time": "Delivered in 28 mins",
+                    "items": [
+                        ("Paneer Tikka Platter", 1),
+                        ("Crispy Chilli Chicken", 1),
+                    ]
+                },
+                # 2. DELIVERED (Neha Kapoor, CARD) - Main Course & Dessert
+                {
+                    "user": None,
+                    "customer_name": "Neha Kapoor",
+                    "customer_email": "neha.k@example.com",
+                    "customer_phone": "+91 98234 56789",
+                    "delivery_address": "Penthouse 18B, Ocean Towers, Worli",
+                    "delivery_city": "Mumbai",
+                    "delivery_notes": "Call on arrival",
+                    "payment_method": "CARD",
+                    "payment_status": "PAID",
+                    "order_status": "DELIVERED",
+                    "delivery_person_name": "Rohan Deshmukh",
+                    "delivery_person_phone": "+91 98333 44556",
+                    "estimated_delivery_time": "Delivered in 35 mins",
+                    "items": [
+                        ("Royal Butter Chicken", 1),
+                        ("Dal Makhani Special", 1),
+                        ("Belgian Molten Chocolate Cake", 1),
+                    ]
+                },
+                # 3. OUT_FOR_DELIVERY (Rahul Sharma, CARD) - Pizzas
+                {
+                    "user": customer_user,
+                    "customer_name": "Rahul Sharma",
+                    "customer_email": "customer@gmail.com",
+                    "customer_phone": "+91 98765 12345",
+                    "delivery_address": "Flat 402, Sunshine Heights, MG Road",
+                    "delivery_city": "Mumbai",
+                    "delivery_notes": "Ring doorbell twice",
+                    "payment_method": "CARD",
+                    "payment_status": "PAID",
+                    "order_status": "OUT_FOR_DELIVERY",
+                    "delivery_person_name": "Aman Gupta",
+                    "delivery_person_phone": "+91 98222 33445",
+                    "estimated_delivery_time": "10 - 15 mins away",
+                    "items": [
+                        ("Spicy Peri-Peri Chicken Pizza", 1),
+                        ("Artisanal Margherita Pizza", 1),
+                    ]
+                },
+                # 4. PREPARING (Priya Patel, COD) - Starters & Beverages
+                {
+                    "user": None,
+                    "customer_name": "Priya Patel",
+                    "customer_email": "priya@example.com",
+                    "customer_phone": "+91 99887 76655",
+                    "delivery_address": "B-12, Green Park Avenue",
+                    "delivery_city": "Mumbai",
+                    "delivery_notes": "Extra spicy please, less ice in mojito",
+                    "payment_method": "COD",
+                    "payment_status": "PENDING",
+                    "order_status": "PREPARING",
+                    "delivery_person_name": "FoodMart Express Rider",
+                    "delivery_person_phone": "+91 98765 43210",
+                    "estimated_delivery_time": "25 - 30 mins",
+                    "items": [
+                        ("Loaded Nachos Grande", 1),
+                        ("Fresh Mint Mojito", 2),
+                    ]
+                },
+                # 5. CONFIRMED (Amit Joshi, UPI) - Burgers & Dessert
+                {
+                    "user": None,
+                    "customer_name": "Amit Joshi",
+                    "customer_email": "amit.j@example.com",
+                    "customer_phone": "+91 97654 32109",
+                    "delivery_address": "Tower 4, Apt 803, Silver Palms, Andheri East",
+                    "delivery_city": "Mumbai",
+                    "delivery_notes": "Door code #4088",
+                    "payment_method": "UPI",
+                    "payment_status": "PAID",
+                    "order_status": "CONFIRMED",
+                    "delivery_person_name": "FoodMart Express Rider",
+                    "delivery_person_phone": "+91 98765 43210",
+                    "estimated_delivery_time": "35 - 40 mins",
+                    "items": [
+                        ("Classic Gourmet Cheeseburger", 2),
+                        ("New York Baked Cheesecake", 1),
+                    ]
+                },
+                # 6. PENDING (Sneha Kulkarni, COD) - Biryani & Coffee
+                {
+                    "user": None,
+                    "customer_name": "Sneha Kulkarni",
+                    "customer_email": "sneha.k@example.com",
+                    "customer_phone": "+91 98112 34567",
+                    "delivery_address": "House 45, Gulmohar Colony, Juhu",
+                    "delivery_city": "Mumbai",
+                    "delivery_notes": "Hot packaging needed",
+                    "payment_method": "COD",
+                    "payment_status": "PENDING",
+                    "order_status": "PENDING",
+                    "delivery_person_name": "FoodMart Express Rider",
+                    "delivery_person_phone": "+91 98765 43210",
+                    "estimated_delivery_time": "40 - 45 mins",
+                    "items": [
+                        ("Hyderabadi Dum Biryani", 1),
+                        ("Cold Brew Hazelnut Latte", 1),
+                    ]
+                },
+                # 7. CANCELLED (Rohan Mehta, COD) - Indian Curry & Dessert
+                {
+                    "user": None,
+                    "customer_name": "Rohan Mehta",
+                    "customer_email": "rohan.m@example.com",
+                    "customer_phone": "+91 98999 88877",
+                    "delivery_address": "Flat 101, Sea View Residency, Bandra",
+                    "delivery_city": "Mumbai",
+                    "delivery_notes": "Cancelled by customer due to sudden travel",
+                    "payment_method": "COD",
+                    "payment_status": "FAILED",
+                    "order_status": "CANCELLED",
+                    "delivery_person_name": "",
+                    "delivery_person_phone": "",
+                    "estimated_delivery_time": "Cancelled",
+                    "items": [
+                        ("Paneer Butter Masala", 1),
+                        ("Warm Gulab Jamun with Rabri", 2),
+                    ]
+                },
+            ]
 
-        # 7. Create Sample Table Reservations
-        if not TableReservation.objects.exists():
-            today = datetime.date.today()
-            tomorrow = today + datetime.timedelta(days=1)
+            for spec in orders_specs:
+                order = Order.objects.create(
+                    user=spec["user"],
+                    customer_name=spec["customer_name"],
+                    customer_email=spec["customer_email"],
+                    customer_phone=spec["customer_phone"],
+                    delivery_address=spec["delivery_address"],
+                    delivery_city=spec["delivery_city"],
+                    delivery_notes=spec["delivery_notes"],
+                    total_amount=Decimal("0.00"),  # Computed dynamically below
+                    delivery_fee=Decimal("30.00"),
+                    payment_method=spec["payment_method"],
+                    payment_status=spec["payment_status"],
+                    order_status=spec["order_status"],
+                    delivery_person_name=spec["delivery_person_name"],
+                    delivery_person_phone=spec["delivery_person_phone"],
+                    estimated_delivery_time=spec["estimated_delivery_time"],
+                )
+
+                for dish_name, qty in spec["items"]:
+                    dish_item = items_dict.get(dish_name)
+                    if dish_item:
+                        OrderItem.objects.create(
+                            order=order,
+                            food_item=dish_item,
+                            food_name=dish_item.name,
+                            food_price=dish_item.price,
+                            quantity=qty,
+                            subtotal=dish_item.price * qty
+                        )
+
+                # Exactly compute order total_amount from items
+                computed_subtotal = OrderItem.objects.filter(order=order).aggregate(s=Sum("subtotal"))["s"] or Decimal("0.00")
+                order.total_amount = computed_subtotal
+                order.save()
+
+                # Create Payment record with exact grand total
+                p_status = "SUCCESS" if order.payment_status == "PAID" else ("FAILED" if order.order_status == "CANCELLED" else "PENDING")
+                p_gateway = "UPI Gateway" if order.payment_method == "UPI" else ("Card Network" if order.payment_method == "CARD" else "Cash on Delivery")
+                Payment.objects.create(
+                    order=order,
+                    payment_method=order.payment_method,
+                    amount=order.grand_total,
+                    status=p_status,
+                    payment_gateway=p_gateway,
+                    paid_at=timezone.now() if p_status == "SUCCESS" else None
+                )
+
+            self.stdout.write(self.style.SUCCESS(f"Created {len(orders_specs)} verified demo orders with exact item totals and payment records."))
+
+        # 7. Create or Refresh Sample Table Reservations
+        today = timezone.localdate()
+        tomorrow = today + datetime.timedelta(days=1)
+        day_after = today + datetime.timedelta(days=2)
+
+        has_stale_reservations = False
+        if TableReservation.objects.exists():
+            # Check if all reservations are in the past
+            active_count = TableReservation.objects.filter(reservation_date__gte=today).count()
+            if active_count == 0:
+                has_stale_reservations = True
+
+        if reset_mode or not TableReservation.objects.exists() or has_stale_reservations:
+            if reset_mode or has_stale_reservations:
+                self.stdout.write(self.style.WARNING("Refreshing stale reservations with current dates..."))
+                TableReservation.objects.all().delete()
+
             TableReservation.objects.create(
                 user=customer_user,
                 customer_name="Rahul Sharma",
                 customer_email="customer@gmail.com",
                 customer_phone="+91 98765 12345",
-                table=table_objs[1],
+                table=table_objs[1],  # Romantic Booth
                 reservation_date=today,
                 reservation_time=datetime.time(19, 30),
                 guest_count=2,
@@ -441,16 +611,44 @@ class Command(BaseCommand):
             )
             TableReservation.objects.create(
                 user=None,
+                customer_name="Sunita Rao",
+                customer_email="sunita.rao@example.com",
+                customer_phone="+91 98321 65498",
+                table=table_objs[2],  # Main Dining Hall
+                reservation_date=today,
+                reservation_time=datetime.time(13, 0),
+                guest_count=4,
+                special_requests="Business lunch meeting. Fast service requested.",
+                status="COMPLETED",
+                admin_notes="Billed and vacated on schedule."
+            )
+            TableReservation.objects.create(
+                user=None,
                 customer_name="Aditya Verma",
                 customer_email="aditya@example.com",
                 customer_phone="+91 98123 45678",
-                table=table_objs[4],
+                table=table_objs[4],  # Outdoor Garden Terrace
                 reservation_date=tomorrow,
                 reservation_time=datetime.time(20, 0),
                 guest_count=5,
                 special_requests="Family get-together with kids. High chair needed.",
                 status="PENDING"
             )
-            self.stdout.write(self.style.SUCCESS("Created sample table reservations."))
+            TableReservation.objects.create(
+                user=customer_user,
+                customer_name="Karan Kapoor",
+                customer_email="karan.k@example.com",
+                customer_phone="+91 98450 11223",
+                table=table_objs[6],  # Family Lounge
+                reservation_date=day_after,
+                reservation_time=datetime.time(20, 30),
+                guest_count=6,
+                special_requests="Birthday cake celebration. Table near music speakers.",
+                status="CONFIRMED",
+                admin_notes="Pre-booked with 600 advance token."
+            )
+            self.stdout.write(self.style.SUCCESS("Created/refreshed active table reservations for today and upcoming days."))
+        else:
+            self.stdout.write("Active table reservations already present.")
 
-        self.stdout.write(self.style.SUCCESS("FoodMart database successfully seeded!"))
+        self.stdout.write(self.style.SUCCESS("FoodMart database successfully seeded and verified!"))

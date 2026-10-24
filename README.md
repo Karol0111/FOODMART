@@ -24,7 +24,7 @@
   - Printable invoice receipt with itemized breakdown.
 - **Dine-In Table Reservation**:
   - Reserve dining tables by selecting date, time slot, and guest count.
-  - Choose seating ambiance (*Main Dining Hall, Window View, Romantic Booth, Outdoor Terrace, Family Lounge*).
+  - Choose seating ambiance (*Main Dining Hall, Window View, Romantic Booth, Outdoor Garden Terrace, Family Lounge*).
   - View booking history and cancel upcoming reservations with one click.
 
 ---

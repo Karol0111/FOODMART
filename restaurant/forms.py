@@ -130,7 +130,8 @@ class TableReservationForm(forms.ModelForm):
 
     def clean_reservation_date(self):
         res_date = self.cleaned_data.get('reservation_date')
-        if res_date and res_date < datetime.date.today():
+        from django.utils import timezone
+        if res_date and res_date < timezone.localdate():
             raise forms.ValidationError("Reservation date cannot be in the past.")
         return res_date
 

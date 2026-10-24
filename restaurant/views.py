@@ -518,7 +518,7 @@ def profile_view(request):
 
 @user_passes_test(is_admin, login_url='login')
 def admin_dashboard(request):
-    today = datetime.date.today()
+    today = timezone.localdate()
     
     # Financial and order KPIs
     total_revenue = Order.objects.filter(order_status='DELIVERED').aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
