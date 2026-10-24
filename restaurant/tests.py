@@ -3,7 +3,13 @@ from decimal import Decimal
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
-from .models import Category, FoodItem, RestaurantTable, TableReservation, Order, OrderItem, CustomerProfile, Payment
+from django.db import IntegrityError, transaction
+from django.utils import timezone
+from .forms import FoodItemForm
+from .models import (
+    Category, FoodItem, RestaurantTable, TableReservation, Order, OrderItem,
+    CustomerProfile, Payment, DeliveryPartner,
+)
 
 
 class FoodMartTests(TestCase):
@@ -77,6 +83,12 @@ class FoodMartTests(TestCase):
         self.assertEqual(order.items.count(), 1)
         self.assertEqual(order.items.first().food_name, 'Test Pizza')
         self.assertContains(response, order.order_number)
+
+        # Totals are derived from the items; payment info comes from the Payment row
+        self.assertEqual(order.total_amount, Decimal('299.00'))
+        self.assertEqual(order.grand_total, Decimal('329.00'))
+        self.assertEqual(order.payment_method, 'COD')
+        self.assertEqual(order.payment_status, 'PENDING')
 
         # Verify Payment record creation
         self.assertTrue(order.payments.exists())
@@ -295,4 +307,215 @@ class FoodMartTests(TestCase):
         self.assertIn("Deleted dish 'Temporary Dish'.", data['message'])
         self.assertFalse(FoodItem.objects.filter(id=del_item.id).exists())
 
+    # ==================================================================
+    # Tests for the normalized (3NF) schema
+    # ==================================================================
+    def _make_order(self, status='DELIVERED', lines=((299, 2),), user=None, rider=None, fee='30.00'):
+        order = Order.objects.create(
+            user=user, customer_name='Order Person', customer_email='o@test.com',
+            customer_phone='9876543210', delivery_address='1 Test Road', delivery_city='Testville',
+            delivery_fee=Decimal(fee), order_status=status, delivery_partner=rider,
+        )
+        for price, qty in lines:
+            OrderItem.objects.create(
+                order=order, food_item=self.food, food_name='Test Pizza',
+                food_price=Decimal(str(price)), quantity=qty,
+            )
+        return order
 
+    def _reservation_data(self, **overrides):
+        data = {
+            'customer_name': 'Test User', 'customer_email': 'cust@test.com',
+            'customer_phone': '9876543210', 'table': self.table.id,
+            'reservation_date': (timezone.localdate() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'),
+            'reservation_time': '19:00', 'guest_count': 2, 'special_requests': '',
+        }
+        data.update(overrides)
+        return data
+
+    def test_order_and_item_totals_are_derived(self):
+        order = self._make_order(lines=((299, 2), (150, 1)))
+        self.assertEqual(sorted(i.subtotal for i in order.items.all()), [Decimal('150.00'), Decimal('598.00')])
+        self.assertEqual(order.total_amount, Decimal('748.00'))
+        self.assertEqual(order.grand_total, Decimal('778.00'))
+        annotated = Order.objects.with_totals().get(pk=order.pk)
+        self.assertEqual(annotated.items_total_db, Decimal('748.00'))
+        self.assertEqual(annotated.grand_total_db, Decimal('778.00'))
+
+    def test_order_without_items_has_zero_total(self):
+        order = self._make_order(lines=())
+        self.assertEqual(order.total_amount, Decimal('0.00'))
+        self.assertEqual(Order.objects.with_totals().get(pk=order.pk).items_total_db, Decimal('0.00'))
+
+    def test_payment_info_comes_from_payment_table(self):
+        order = self._make_order()
+        self.assertIsNone(order.payment_method)
+        self.assertEqual(order.payment_status, 'PENDING')
+        Payment.objects.create(order=order, payment_method='UPI', amount=order.grand_total, status='SUCCESS')
+        order = Order.objects.get(pk=order.pk)
+        self.assertEqual(order.payment_method, 'UPI')
+        self.assertEqual(order.payment_status, 'SUCCESS')
+        self.assertTrue(order.is_paid)
+
+    def test_rider_details_live_in_one_delivery_partner_row(self):
+        rider = DeliveryPartner.objects.create(name='Ravi', phone='+91 98123 45670')
+        first = self._make_order(rider=rider)
+        second = self._make_order(rider=rider)
+        self.assertEqual(DeliveryPartner.objects.count(), 1)
+        self.assertEqual(first.delivery_person_name, 'Ravi')
+        self.assertEqual(second.delivery_person_phone, '+91 98123 45670')
+        self.assertEqual(rider.orders.count(), 2)
+
+    def test_unassigned_order_has_blank_rider_details(self):
+        order = self._make_order()
+        self.assertEqual(order.delivery_person_name, '')
+        self.assertEqual(order.delivery_person_phone, '')
+
+    def test_checkout_card_marks_payment_success(self):
+        self.client.login(username='testcust', password='password123')
+        self.client.post(reverse('add_to_cart', args=[self.food.id]), {'quantity': 1})
+        self.client.post(reverse('checkout'), {
+            'customer_name': 'Test User', 'customer_email': 'cust@test.com',
+            'customer_phone': '9876543210', 'delivery_address': '123 Test St',
+            'delivery_city': 'Testville', 'delivery_notes': '', 'payment_method': 'CARD',
+        })
+        order = Order.objects.get(user=self.customer)
+        self.assertEqual(order.payment_status, 'SUCCESS')
+        self.assertIsNotNone(order.payments.first().paid_at)
+
+    def test_admin_dispatch_updates_rider_and_payment(self):
+        self.client.login(username='testadmin', password='password123')
+        order = self._make_order(status='OUT_FOR_DELIVERY')
+        Payment.objects.create(order=order, payment_method='COD', amount=order.grand_total, status='PENDING')
+        data = {
+            'order_status': 'DELIVERED', 'payment_status': 'SUCCESS',
+            'delivery_person_name': 'Ravi Kumar', 'delivery_person_phone': '9812345670',
+            'estimated_delivery_time': 'Delivered in 25 mins',
+        }
+        response = self.client.post(reverse('admin_order_detail', args=[order.pk]), data)
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, 'DELIVERED')
+        self.assertEqual(order.delivery_partner.name, 'Ravi Kumar')
+        payment = order.payments.first()
+        self.assertEqual(payment.status, 'SUCCESS')
+        self.assertIsNotNone(payment.paid_at)
+
+        # Dispatching a second order with the same rider reuses the same DeliveryPartner row
+        other = self._make_order(status='PREPARING')
+        data.update({'order_status': 'OUT_FOR_DELIVERY', 'payment_status': 'PENDING'})
+        self.client.post(reverse('admin_order_detail', args=[other.pk]), data)
+        other.refresh_from_db()
+        self.assertEqual(other.delivery_partner_id, order.delivery_partner_id)
+        self.assertEqual(DeliveryPartner.objects.count(), 1)
+
+    def test_admin_rider_needs_name_and_phone_together(self):
+        self.client.login(username='testadmin', password='password123')
+        order = self._make_order(status='PREPARING')
+        response = self.client.post(reverse('admin_order_detail', args=[order.pk]), {
+            'order_status': 'OUT_FOR_DELIVERY', 'payment_status': 'PENDING',
+            'delivery_person_name': 'No Phone', 'delivery_person_phone': '',
+            'estimated_delivery_time': '10 mins',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].has_error('delivery_person_phone'))
+        order.refresh_from_db()
+        self.assertIsNone(order.delivery_partner)
+
+    def test_food_form_stores_typed_prep_time_and_calories(self):
+        form = FoodItemForm({
+            'name': 'Form Dish', 'category': self.category.id, 'price': '120.00',
+            'description': 'Tasty', 'image_url': '', 'is_veg': 'on', 'is_available': 'on',
+            'preparation_time': '15-20 mins', 'calories': '320 kcal',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        item = form.save()
+        self.assertEqual((item.prep_time_min, item.prep_time_max, item.calories_kcal), (15, 20, 320))
+        self.assertEqual(item.preparation_time, '15-20 mins')
+        self.assertEqual(item.calories, '320 kcal')
+
+    def test_food_form_rejects_bad_prep_time(self):
+        base = {'name': 'Bad Dish', 'category': self.category.id, 'price': '10.00', 'description': 'x'}
+        for bad in ('soon', '25-20 mins', '9999 mins'):
+            form = FoodItemForm({**base, 'preparation_time': bad, 'calories': ''})
+            self.assertFalse(form.is_valid(), bad)
+            self.assertIn('preparation_time', form.errors)
+
+    def test_reservation_double_booking_is_blocked(self):
+        self.client.login(username='testcust', password='password123')
+        self.client.post(reverse('table_reservation'), self._reservation_data())
+        response = self.client.post(reverse('table_reservation'), self._reservation_data())
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].non_field_errors())
+        self.assertEqual(TableReservation.objects.filter(table=self.table).count(), 1)
+
+    def test_cancelled_booking_frees_the_slot(self):
+        self.client.login(username='testcust', password='password123')
+        data = self._reservation_data()
+        TableReservation.objects.create(
+            customer_name='Earlier', customer_email='e@test.com', customer_phone='9876543210',
+            table=self.table, reservation_date=data['reservation_date'],
+            reservation_time=data['reservation_time'], guest_count=2, status='CANCELLED',
+        )
+        self.client.post(reverse('table_reservation'), data)
+        active = TableReservation.objects.filter(table=self.table).exclude(status='CANCELLED')
+        self.assertEqual(active.count(), 1)
+
+    def test_reservation_guest_count_cannot_exceed_table_capacity(self):
+        self.client.login(username='testcust', password='password123')
+        response = self.client.post(reverse('table_reservation'), self._reservation_data(guest_count=6))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].errors)
+        self.assertEqual(TableReservation.objects.count(), 0)
+
+    def test_database_blocks_duplicate_active_slot_and_zero_quantity(self):
+        slot = dict(
+            customer_name='A', customer_email='a@test.com', customer_phone='9876543210',
+            table=self.table, reservation_date=timezone.localdate(),
+            reservation_time=datetime.time(20, 0), guest_count=2,
+        )
+        TableReservation.objects.create(status='PENDING', **slot)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            TableReservation.objects.create(status='CONFIRMED', **slot)
+
+        order = self._make_order(lines=())
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            OrderItem.objects.create(order=order, food_name='Zero', food_price=Decimal('10.00'), quantity=0)
+
+    def test_admin_dashboard_and_reports_use_derived_totals(self):
+        self.client.login(username='testadmin', password='password123')
+        delivered = self._make_order(status='DELIVERED', lines=((299, 2),))            # 598
+        self._make_order(status='CANCELLED', lines=((100, 1),))                        # 100
+        pending = self._make_order(status='PENDING', lines=((50, 3),))                 # 150
+        Payment.objects.create(order=delivered, payment_method='UPI', amount=delivered.grand_total, status='SUCCESS')
+        Payment.objects.create(order=pending, payment_method='COD', amount=pending.grand_total, status='PENDING')
+
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_revenue'], Decimal('598.00'))
+        self.assertEqual(response.context['all_revenue'], Decimal('748.00'))   # cancelled excluded
+
+        response = self.client.get(reverse('admin_reports'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_sales'], Decimal('598.00'))
+        top = list(response.context['top_dishes'])
+        self.assertEqual(top[0]['food_name'], 'Test Pizza')
+        self.assertEqual(top[0]['total_qty'], 6)
+        self.assertEqual(top[0]['total_revenue'], Decimal('848.00'))
+        methods = {row['payment_method']: row['count'] for row in response.context['payment_breakdown']}
+        self.assertEqual(methods, {'UPI': 1, 'COD': 1})
+
+    def test_admin_customer_list_counts_are_not_multiplied(self):
+        self.client.login(username='testadmin', password='password123')
+        self._make_order(user=self.customer)
+        self._make_order(user=self.customer)
+        TableReservation.objects.create(
+            user=self.customer, customer_name='Test User', customer_email='cust@test.com',
+            customer_phone='9876543210', table=self.table,
+            reservation_date=timezone.localdate(), reservation_time=datetime.time(18, 0), guest_count=2,
+        )
+        response = self.client.get(reverse('admin_customer_list'))
+        self.assertEqual(response.status_code, 200)
+        row = next(c for c in response.context['customers'] if c.pk == self.customer.pk)
+        self.assertEqual(row.order_count, 2)
+        self.assertEqual(row.reservation_count, 1)

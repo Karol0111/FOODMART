@@ -5,7 +5,8 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.db.models import Sum, Count, Q
+from django.db import IntegrityError, transaction
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
 from django.http import JsonResponse
 from django.contrib.auth.models import User
 
@@ -26,6 +27,19 @@ from .forms import (
 # Helper check for staff/admin
 def is_admin(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+
+# Order totals are derived (3NF): a line is quantity * food_price, an order is the sum of its lines.
+LINE_TOTAL = ExpressionWrapper(
+    F('quantity') * F('food_price'),
+    output_field=DecimalField(max_digits=12, decimal_places=2),
+)
+
+
+def revenue_of(order_queryset):
+    """Items revenue (before delivery fee) for the given orders."""
+    total = OrderItem.objects.filter(order__in=order_queryset).aggregate(total=Sum(LINE_TOTAL))['total']
+    return total or Decimal('0.00')
 
 
 # ==========================================
@@ -229,44 +243,36 @@ def checkout(request):
     if request.method == 'POST':
         form = OrderCheckoutForm(request.POST)
         if form.is_valid():
-            order = form.save(commit=False)
-            order.user = request.user
-            order.total_amount = subtotal
-            order.delivery_fee = delivery_fee
-            
-            # Payment simulation
-            if order.payment_method in ['CARD', 'UPI']:
-                order.payment_status = 'PAID'
-            else:
-                order.payment_status = 'PENDING'
-            
-            order.order_status = 'CONFIRMED'
-            order.save()
+            payment_method = form.cleaned_data['payment_method']
+            paid_now = payment_method in ('CARD', 'UPI')   # payment simulation
 
-            # Record payment transaction in Payment table
-            p_status = 'SUCCESS' if order.payment_status == 'PAID' else 'PENDING'
-            p_gateway = 'UPI Payment Gateway' if order.payment_method == 'UPI' else ('Credit/Debit Card' if order.payment_method == 'CARD' else 'Cash on Delivery')
-            Payment.objects.create(
-                order=order,
-                payment_method=order.payment_method,
-                amount=order.grand_total,
-                status=p_status,
-                payment_gateway=p_gateway,
-                paid_at=timezone.now() if p_status == 'SUCCESS' else None
-            )
+            with transaction.atomic():
+                order = form.save(commit=False)
+                order.user = request.user
+                order.delivery_fee = delivery_fee
+                order.order_status = 'CONFIRMED'
+                order.save()
 
-            # Create OrderItems
-            for item_id, item_data in cart.items():
-                food_item = FoodItem.objects.filter(pk=item_id).first()
-                price = Decimal(str(item_data.get('price', 0)))
-                qty = int(item_data.get('quantity', 1))
-                OrderItem.objects.create(
+                # Items first: the order total is derived from them.
+                for item_id, item_data in cart.items():
+                    food_item = FoodItem.objects.filter(pk=item_id).first()
+                    OrderItem.objects.create(
+                        order=order,
+                        food_item=food_item,
+                        food_name=item_data.get('name'),
+                        food_price=Decimal(str(item_data.get('price', 0))),
+                        quantity=int(item_data.get('quantity', 1)),
+                    )
+
+                # Payment is the single source of truth for method and status.
+                p_gateway = 'UPI Payment Gateway' if payment_method == 'UPI' else ('Credit/Debit Card' if payment_method == 'CARD' else 'Cash on Delivery')
+                Payment.objects.create(
                     order=order,
-                    food_item=food_item,
-                    food_name=item_data.get('name'),
-                    food_price=price,
-                    quantity=qty,
-                    subtotal=price * qty
+                    payment_method=payment_method,
+                    amount=order.grand_total,
+                    status='SUCCESS' if paid_now else 'PENDING',
+                    payment_gateway=p_gateway,
+                    paid_at=timezone.now() if paid_now else None,
                 )
 
             # Update customer profile address if blank
@@ -303,7 +309,10 @@ def checkout(request):
 
 
 def order_detail(request, order_number):
-    order = get_object_or_404(Order, order_number=order_number)
+    order = get_object_or_404(
+        Order.objects.select_related('delivery_partner').prefetch_related('items', 'payments'),
+        order_number=order_number,
+    )
     # Allow access if user is staff or is the order owner or if anonymous placed just now
     if not request.user.is_staff and order.user and order.user != request.user:
         messages.error(request, "You are not authorized to view this order.")
@@ -318,7 +327,10 @@ def order_detail(request, order_number):
 
 
 def order_invoice(request, order_number):
-    order = get_object_or_404(Order, order_number=order_number)
+    order = get_object_or_404(
+        Order.objects.select_related('delivery_partner').prefetch_related('items', 'payments'),
+        order_number=order_number,
+    )
     # Allow access if user is staff or is the order owner or if anonymous placed just now
     if not request.user.is_staff and order.user and order.user != request.user:
         messages.error(request, "You are not authorized to view this invoice.")
@@ -333,7 +345,10 @@ def order_invoice(request, order_number):
 
 
 def order_kitchen_slip(request, order_number):
-    order = get_object_or_404(Order.objects.prefetch_related('items__food_item__category'), order_number=order_number)
+    order = get_object_or_404(
+        Order.objects.select_related('delivery_partner').prefetch_related('items__food_item__category', 'payments'),
+        order_number=order_number,
+    )
     # Allow access if user is staff or is the order owner
     if not request.user.is_staff and order.user and order.user != request.user:
         messages.error(request, "You are not authorized to view this kitchen slip.")
@@ -358,7 +373,8 @@ def order_kitchen_slip(request, order_number):
 
 @login_required
 def order_history(request):
-    orders = Order.objects.filter(user=request.user).order_by('-created_at')
+    orders = (Order.objects.filter(user=request.user).order_by('-created_at')
+              .select_related('delivery_partner').prefetch_related('items', 'payments'))
     return render(request, 'restaurant/order_history.html', {'orders': orders})
 
 
@@ -376,12 +392,17 @@ def table_reservation(request):
             if request.user.is_authenticated:
                 reservation.user = request.user
             reservation.status = 'PENDING'
-            reservation.save()
-            messages.success(request, f"Table reservation requested! Booking Code: {reservation.reservation_code}. We will confirm shortly.")
-            if request.user.is_authenticated:
-                return redirect('reservation_history')
+            try:
+                with transaction.atomic():
+                    reservation.save()
+            except IntegrityError:
+                form.add_error(None, "Sorry, that table was just booked for the selected time. Please choose another table or time.")
             else:
-                return render(request, 'restaurant/reservation_success.html', {'reservation': reservation})
+                messages.success(request, f"Table reservation requested! Booking Code: {reservation.reservation_code}. We will confirm shortly.")
+                if request.user.is_authenticated:
+                    return redirect('reservation_history')
+                else:
+                    return render(request, 'restaurant/reservation_success.html', {'reservation': reservation})
     else:
         initial_data = {}
         if request.user.is_authenticated:
@@ -501,7 +522,8 @@ def profile_view(request):
             'email': request.user.email,
         })
 
-    recent_orders = Order.objects.filter(user=request.user)[:5]
+    recent_orders = (Order.objects.filter(user=request.user)
+                     .select_related('delivery_partner').prefetch_related('items', 'payments')[:5])
     recent_reservations = TableReservation.objects.filter(user=request.user)[:5]
 
     context = {
@@ -521,8 +543,8 @@ def admin_dashboard(request):
     today = timezone.localdate()
     
     # Financial and order KPIs
-    total_revenue = Order.objects.filter(order_status='DELIVERED').aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
-    all_revenue = Order.objects.exclude(order_status='CANCELLED').aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+    total_revenue = revenue_of(Order.objects.filter(order_status='DELIVERED'))
+    all_revenue = revenue_of(Order.objects.exclude(order_status='CANCELLED'))
     total_orders = Order.objects.count()
     pending_orders = Order.objects.filter(order_status__in=['PENDING', 'CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY']).count()
     today_orders = Order.objects.filter(created_at__date=today).count()
@@ -536,7 +558,7 @@ def admin_dashboard(request):
     total_customers = User.objects.filter(is_staff=False).count()
 
     # Recent items
-    recent_orders = Order.objects.all()[:6]
+    recent_orders = Order.objects.select_related('delivery_partner').prefetch_related('items', 'payments')[:6]
     upcoming_reservations = TableReservation.objects.filter(reservation_date__gte=today).order_by('reservation_date', 'reservation_time')[:5]
 
     # Quick status counts for chart
@@ -678,7 +700,7 @@ def admin_order_list(request):
     status = request.GET.get('status', '')
     query = request.GET.get('q', '').strip()
 
-    orders = Order.objects.all()
+    orders = Order.objects.select_related('delivery_partner').prefetch_related('items', 'payments')
     if status:
         orders = orders.filter(order_status=status)
     if query:
@@ -702,14 +724,7 @@ def admin_order_detail(request, pk):
     if request.method == 'POST':
         form = OrderAdminUpdateForm(request.POST, instance=order)
         if form.is_valid():
-            order = form.save()
-            if order.payment_status == 'PAID':
-                payment = order.payments.first()
-                if payment and payment.status != 'SUCCESS':
-                    payment.status = 'SUCCESS'
-                    if not payment.paid_at:
-                        payment.paid_at = timezone.now()
-                    payment.save()
+            order = form.save()   # also updates the Payment row and the DeliveryPartner link
             messages.success(request, f"Order #{order.order_number} status updated to {order.get_order_status_display()}!")
             return redirect('admin_order_detail', pk=order.pk)
     else:
@@ -747,9 +762,14 @@ def admin_reservation_list(request):
 def admin_reservation_update_status(request, pk, status):
     reservation = get_object_or_404(TableReservation, pk=pk)
     if status in ['CONFIRMED', 'CANCELLED', 'COMPLETED']:
-        reservation.status = status
-        reservation.save()
-        messages.success(request, f"Reservation {reservation.reservation_code} marked as {status}!")
+        try:
+            with transaction.atomic():
+                reservation.status = status
+                reservation.save()
+        except IntegrityError:
+            messages.error(request, f"Cannot mark {reservation.reservation_code} as {status}: another active booking already holds that table at the same date and time.")
+        else:
+            messages.success(request, f"Reservation {reservation.reservation_code} marked as {status}!")
     return redirect('admin_reservation_list')
 
 
@@ -757,8 +777,8 @@ def admin_reservation_update_status(request, pk, status):
 @user_passes_test(is_admin, login_url='login')
 def admin_customer_list(request):
     customers = User.objects.filter(is_staff=False).annotate(
-        order_count=Count('orders'),
-        reservation_count=Count('reservations')
+        order_count=Count('orders', distinct=True),
+        reservation_count=Count('reservations', distinct=True)
     ).order_by('-date_joined')
 
     return render(request, 'restaurant/admin_portal/customer_list.html', {'customers': customers})
@@ -767,7 +787,7 @@ def admin_customer_list(request):
 # Reports & Analytics
 @user_passes_test(is_admin, login_url='login')
 def admin_reports(request):
-    total_sales = Order.objects.filter(order_status='DELIVERED').aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+    total_sales = revenue_of(Order.objects.filter(order_status='DELIVERED'))
     total_orders_count = Order.objects.count()
     completed_orders = Order.objects.filter(order_status='DELIVERED').count()
     cancelled_orders = Order.objects.filter(order_status='CANCELLED').count()
@@ -775,7 +795,7 @@ def admin_reports(request):
     # Top 5 most ordered dishes
     top_dishes = OrderItem.objects.values('food_name').annotate(
         total_qty=Sum('quantity'),
-        total_revenue=Sum('subtotal')
+        total_revenue=Sum(LINE_TOTAL)
     ).order_by('-total_qty')[:5]
 
     # Category breakdown
@@ -783,11 +803,11 @@ def admin_reports(request):
         'food_item__category__name'
     ).annotate(
         items_sold=Sum('quantity'),
-        revenue=Sum('subtotal')
+        revenue=Sum(LINE_TOTAL)
     ).order_by('-revenue')
 
     # Payment method breakdown
-    payment_breakdown = Order.objects.values('payment_method').annotate(count=Count('id'))
+    payment_breakdown = Payment.objects.values('payment_method').annotate(count=Count('order', distinct=True))
 
     context = {
         'total_sales': total_sales,

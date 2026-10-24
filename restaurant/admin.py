@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Category, FoodItem, RestaurantTable, TableReservation, Order, OrderItem, CustomerProfile, Payment
+from .models import (
+    Category, FoodItem, RestaurantTable, TableReservation, Order, OrderItem,
+    CustomerProfile, Payment, DeliveryPartner,
+)
 
 
 class OrderItemInline(admin.TabularInline):
@@ -46,8 +49,10 @@ class TableReservationAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('order_number', 'customer_name', 'customer_phone', 'total_amount', 'payment_method', 'payment_status', 'order_status', 'created_at')
-    list_filter = ('order_status', 'payment_status', 'payment_method', 'created_at')
+    # total_amount, payment_method and payment_status are derived (properties), not columns.
+    list_display = ('order_number', 'customer_name', 'customer_phone', 'total_amount', 'payment_method', 'payment_status', 'order_status', 'delivery_partner', 'created_at')
+    list_filter = ('order_status', 'payments__status', 'payments__payment_method', 'delivery_partner', 'created_at')
+    list_select_related = ('delivery_partner',)
     search_fields = ('order_number', 'customer_name', 'customer_phone')
     inlines = [OrderItemInline, PaymentInline]
 
@@ -64,3 +69,10 @@ class PaymentAdmin(admin.ModelAdmin):
 class CustomerProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'phone', 'city')
     search_fields = ('user__username', 'phone', 'city')
+
+
+@admin.register(DeliveryPartner)
+class DeliveryPartnerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'phone', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'phone')
