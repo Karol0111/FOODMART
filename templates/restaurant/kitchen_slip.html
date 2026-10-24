@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Slip (KOT) - #{{ order.order_number }} - FoodMart</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Courier New', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .kot-container {
+                border: 2px solid #000000 !important;
+                box-shadow: none !important;
+                padding: 1.25rem !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 auto !important;
+                page-break-inside: avoid !important;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 0.8cm;
+            }
+        }
+
+        .barcode-strip {
+            background: repeating-linear-gradient(
+                90deg,
+                #111827 0px,
+                #111827 2px,
+                transparent 2px,
+                transparent 4px,
+                #111827 4px,
+                #111827 7px,
+                transparent 7px,
+                transparent 9px,
+                #111827 9px,
+                #111827 12px,
+                transparent 12px,
+                transparent 14px,
+                #111827 14px,
+                #111827 15px,
+                transparent 15px,
+                transparent 18px
+            );
+        }
+
+        /* Thermal POS View mode */
+        .thermal-mode {
+            max-width: 420px !important;
+            font-size: 0.875rem !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-900 min-h-screen py-8 px-4 sm:px-6">
+
+    <!-- Top Action Bar (hidden on print) -->
+    <div class="no-print max-w-3xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+        <div class="flex items-center space-x-2">
+            <a href="{% if request.user.is_staff %}{% url 'admin_order_detail' order.id %}{% else %}{% url 'order_detail' order.order_number %}{% endif %}" 
+               class="inline-flex items-center space-x-2 text-xs font-bold text-gray-700 hover:text-brand-600 bg-gray-50 hover:bg-gray-100 px-3.5 py-2 rounded-xl border border-gray-200 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Back to Order</span>
+            </a>
+            <span class="text-xs text-gray-400">|</span>
+            <span class="text-xs font-semibold text-gray-500">
+                <i class="fa-solid fa-fire-burner text-amber-500 mr-1"></i>Kitchen Display & POS Ticket
+            </span>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <!-- View Mode Switcher -->
+            <button id="viewToggleBtn" onclick="toggleViewMode()" 
+                    class="inline-flex items-center space-x-1.5 text-xs font-bold text-gray-700 bg-gray-50 hover:bg-gray-100 px-3.5 py-2 rounded-xl border border-gray-200 transition cursor-pointer">
+                <i class="fa-solid fa-receipt text-gray-500"></i>
+                <span id="viewModeText">Thermal 80mm Mode</span>
+            </button>
+
+            <!-- Customer Invoice Link -->
+            <a href="{% url 'order_invoice' order.order_number %}" target="_blank"
+               class="inline-flex items-center space-x-1.5 text-xs font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 px-3.5 py-2 rounded-xl border border-brand-200 transition">
+                <i class="fa-solid fa-file-invoice"></i>
+                <span>Tax Invoice</span>
+            </a>
+
+            <!-- Print Button -->
+            <button onclick="window.print()" 
+                    class="inline-flex items-center space-x-2 bg-gray-900 hover:bg-black text-white font-bold text-xs px-4 py-2 rounded-xl shadow-md transition cursor-pointer">
+                <i class="fa-solid fa-print text-amber-400"></i>
+                <span>Print KOT</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN KITCHEN SLIP CONTAINER -->
+    <div id="kotCard" class="kot-container max-w-3xl mx-auto bg-white rounded-3xl shadow-xl border-2 border-gray-900 p-6 sm:p-9 relative overflow-hidden transition-all duration-200">
+        
+        <!-- Header Banner: Restaurant & KOT Title -->
+        <div class="border-b-2 border-gray-900 pb-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center space-x-3.5">
+                    <div class="w-12 h-12 bg-gradient-to-tr from-brand-600 to-amber-500 rounded-xl flex items-center justify-center text-white text-xl shadow-md shadow-brand-500/20 shrink-0">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-1.5">
+                            <h1 class="text-2xl font-black tracking-tight text-gray-900">Food<span class="text-brand-600">Mart</span></h1>
+                            <span class="text-[10px] bg-gray-900 text-white font-mono font-bold px-2 py-0.5 rounded tracking-widest uppercase">KOT</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 font-semibold tracking-wider uppercase mt-0.5">Kitchen Order Ticket & Preparation Slip</p>
+                    </div>
+                </div>
+
+                <div class="text-right sm:border-l-2 sm:border-gray-200 sm:pl-5">
+                    <div class="text-xs uppercase font-mono tracking-widest text-gray-500">Order Token</div>
+                    <div class="text-xl sm:text-2xl font-mono font-black text-gray-900 tracking-tight">
+                        #{{ order.order_number }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Meta Bar -->
+            <div class="mt-4 pt-3 border-t border-dashed border-gray-300 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                    <span class="text-[10px] uppercase font-bold text-gray-400 block font-mono">Order Channel</span>
+                    <span class="font-bold text-gray-900 flex items-center gap-1 mt-0.5">
+                        <i class="fa-solid fa-truck-fast text-brand-600"></i>
+                        <span>Online Delivery</span>
+                    </span>
+                </div>
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                    <span class="text-[10px] uppercase font-bold text-gray-400 block font-mono">Kitchen Station</span>
+                    <span class="font-bold text-gray-900 flex items-center gap-1 mt-0.5">
+                        <i class="fa-solid fa-fire-burner text-amber-500"></i>
+                        <span>Hot Pass & Grill</span>
+                    </span>
+                </div>
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                    <span class="text-[10px] uppercase font-bold text-gray-400 block font-mono">Order Placed</span>
+                    <span class="font-mono font-bold text-gray-900 block mt-0.5 text-[11px]">
+                        {{ order.created_at|date:"d M Y, h:i A" }}
+                    </span>
+                </div>
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                    <span class="text-[10px] uppercase font-bold text-gray-400 block font-mono">Pipeline Status</span>
+                    <span class="font-bold text-xs uppercase px-2 py-0.5 rounded-md inline-block mt-0.5
+                        {% if order.order_status == 'DELIVERED' %}bg-green-100 text-green-800
+                        {% elif order.order_status == 'PREPARING' %}bg-amber-100 text-amber-800
+                        {% elif order.order_status == 'OUT_FOR_DELIVERY' %}bg-indigo-100 text-indigo-800
+                        {% else %}bg-purple-100 text-purple-800{% endif %}">
+                        {{ order.get_order_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer & Special Cooking Notes Alert -->
+        <div class="py-4 border-b-2 border-gray-900 space-y-3">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs">
+                <div>
+                    <span class="text-gray-500 font-medium">Customer:</span>
+                    <span class="font-black text-gray-900 text-sm ml-1">{{ order.customer_name }}</span>
+                    <span class="text-gray-400 font-mono ml-2">({{ order.customer_phone }})</span>
+                </div>
+                <div>
+                    <span class="text-gray-500 font-medium">Delivery Destination:</span>
+                    <span class="font-bold text-gray-800 ml-1">{{ order.delivery_city }}</span>
+                </div>
+            </div>
+
+            <!-- SPECIAL INSTRUCTIONS CALLOUT (High Priority for Kitchen) -->
+            {% if order.delivery_notes %}
+                <div class="bg-amber-50 border-2 border-amber-400 rounded-2xl p-3.5 flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 text-base shadow-sm">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-black text-amber-900 uppercase tracking-wider text-xs">Chef & Packaging Note:</span>
+                            <span class="bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.2 rounded font-mono">ATTENTION REQUIRED</span>
+                        </div>
+                        <p class="font-bold text-amber-950 text-sm mt-1 leading-snug">
+                            "{{ order.delivery_notes }}"
+                        </p>
+                    </div>
+                </div>
+            {% else %}
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs text-gray-600 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-gray-400"></i>
+                        <span>No special cooking customization noted. Prepare to standard bistro recipe.</span>
+                    </span>
+                    <span class="font-mono text-[10px] text-gray-400">STD_RECIPE_OK</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- ITEMS PREPARATION LIST -->
+        <div class="py-5 border-b-2 border-gray-900">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xs font-black uppercase tracking-widest text-gray-900 flex items-center gap-1.5 font-mono">
+                    <i class="fa-solid fa-list-check text-brand-600"></i>
+                    <span>Dishes To Prepare ({{ dish_types_count }} Items / {{ total_qty }} Portions)</span>
+                </h2>
+                <div class="flex items-center gap-3 text-[11px] font-bold">
+                    <span class="flex items-center gap-1 text-emerald-700">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>
+                        <span>{{ veg_count }} Veg</span>
+                    </span>
+                    {% if non_veg_count > 0 %}
+                    <span class="flex items-center gap-1 text-red-700">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-600 inline-block"></span>
+                        <span>{{ non_veg_count }} Non-Veg</span>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Table of Items -->
+            <div class="border-2 border-gray-900 rounded-2xl overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-900 text-white font-mono text-xs uppercase tracking-wider">
+                            <th class="py-2.5 px-4 text-center w-20">QTY</th>
+                            <th class="py-2.5 px-4">Item Details & Recipe Specs</th>
+                            <th class="py-2.5 px-4 w-32 hidden sm:table-cell">Station</th>
+                            <th class="py-2.5 px-4 text-center w-24">Ready</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y-2 divide-gray-200 text-sm">
+                        {% for item in items %}
+                            <tr class="hover:bg-amber-50/40 transition">
+                                <!-- Large Quantity Badge -->
+                                <td class="py-3.5 px-4 text-center align-middle">
+                                    <span class="inline-flex items-center justify-center bg-gray-900 text-white font-mono font-black text-lg px-3 py-1 rounded-xl shadow-xs">
+                                        {{ item.quantity }}x
+                                    </span>
+                                </td>
+
+                                <!-- Food Name and Info -->
+                                <td class="py-3.5 px-4 align-middle">
+                                    <div class="flex items-start gap-2">
+                                        <!-- Veg / Non-Veg Indicator Icon -->
+                                        {% if item.food_item and item.food_item.is_veg %}
+                                            <span class="w-4 h-4 rounded-sm border-2 border-emerald-600 flex items-center justify-center shrink-0 mt-0.5" title="Vegetarian">
+                                                <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                                            </span>
+                                        {% else %}
+                                            <span class="w-4 h-4 rounded-sm border-2 border-red-600 flex items-center justify-center shrink-0 mt-0.5" title="Non-Vegetarian">
+                                                <span class="w-2 h-2 rounded-full bg-red-600"></span>
+                                            </span>
+                                        {% endif %}
+                                        
+                                        <div>
+                                            <p class="font-black text-gray-900 text-base leading-snug">
+                                                {{ item.food_name }}
+                                            </p>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                {% if item.food_item and item.food_item.category %}
+                                                    <span class="text-[10px] font-mono font-bold uppercase bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                                        {{ item.food_item.category.name }}
+                                                    </span>
+                                                {% endif %}
+                                                <span class="text-[11px] font-mono text-gray-500">Portions: {{ item.quantity }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Prep Station -->
+                                <td class="py-3.5 px-4 align-middle text-xs font-mono font-bold text-gray-600 hidden sm:table-cell">
+                                    {% if item.food_item and item.food_item.category.slug == 'pizzas' or item.food_item.category.slug == 'fast-food' or item.food_item.category.slug == 'burgers' %}
+                                        <span class="text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 inline-block">Oven / Grill</span>
+                                    {% elif item.food_item and item.food_item.category.slug == 'beverages' %}
+                                        <span class="text-cyan-700 bg-cyan-50 px-2 py-1 rounded border border-cyan-200 inline-block">Beverage Bar</span>
+                                    {% elif item.food_item and item.food_item.category.slug == 'desserts' %}
+                                        <span class="text-purple-700 bg-purple-50 px-2 py-1 rounded border border-purple-200 inline-block">Pastry / Cold</span>
+                                    {% else %}
+                                        <span class="text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 inline-block">Main Kitchen</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Checkbox for Cook -->
+                                <td class="py-3.5 px-4 text-center align-middle">
+                                    <div class="inline-flex items-center justify-center w-7 h-7 rounded-lg border-2 border-gray-400 bg-white hover:border-gray-900 cursor-pointer text-gray-400 hover:text-gray-900">
+                                        <i class="fa-solid fa-check text-xs opacity-30 hover:opacity-100"></i>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Kitchen Expediter Summary & Sign-Off -->
+        <div class="pt-5 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                <!-- Packaging & Dispatch instructions -->
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs space-y-2">
+                    <div class="flex items-center justify-between font-mono font-bold text-gray-800">
+                        <span>PACKAGING CHECKLIST:</span>
+                        <span class="text-brand-600 font-black">{{ total_qty }} CONTAINER(S)</span>
+                    </div>
+                    <ul class="space-y-1.5 text-gray-600 text-[11px]">
+                        <li class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-square-check text-emerald-600"></i>
+                            <span>FoodMart Tamper-Proof Seal on all outer boxes</span>
+                        </li>
+                        <li class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-square-check text-emerald-600"></i>
+                            <span>Cutlery, condiments & napkins enclosed</span>
+                        </li>
+                        <li class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-square-check text-emerald-600"></i>
+                            <span>Hot bag insulated thermal container used</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Payment Status Notice for Expediter / Rider -->
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-mono uppercase font-bold text-gray-400 block">Payment & Dispatch Notice</span>
+                        {% if order.payment_status == 'PAID' or payment.status == 'SUCCESS' %}
+                            <div class="mt-1 flex items-center gap-2">
+                                <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-lg text-xs uppercase inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <span>PAID PREPAID ORDER</span>
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-1">Do not collect money from customer. Contactless handoff.</p>
+                        {% else %}
+                            <div class="mt-1 flex items-center gap-2">
+                                <span class="bg-amber-100 text-amber-900 font-bold px-2.5 py-1 rounded-lg text-xs uppercase inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-money-bill-wave"></i>
+                                    <span>CASH ON DELIVERY (COD)</span>
+                                </span>
+                            </div>
+                            <p class="text-xs font-black text-gray-900 mt-1">Collect from customer: ₹{{ order.grand_total }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="pt-2 border-t border-gray-200 mt-2 flex justify-between items-center text-[10px] text-gray-500 font-mono">
+                        <span>EST. TIME: {{ order.estimated_delivery_time|default:"30-40 mins" }}</span>
+                        <span>TARGET: IMMEDIATE DISPATCH</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sign-Off Stamps (Quality Check) -->
+            <div class="grid grid-cols-3 gap-3 pt-2 text-center text-xs font-mono">
+                <div class="border-2 border-dashed border-gray-300 rounded-xl p-3">
+                    <span class="text-[10px] uppercase text-gray-400 block">Cooked By (Chef)</span>
+                    <div class="h-6 mt-1 border-b border-gray-300"></div>
+                </div>
+                <div class="border-2 border-dashed border-gray-300 rounded-xl p-3">
+                    <span class="text-[10px] uppercase text-gray-400 block">Expedited & QC</span>
+                    <div class="h-6 mt-1 border-b border-gray-300"></div>
+                </div>
+                <div class="border-2 border-dashed border-gray-300 rounded-xl p-3">
+                    <span class="text-[10px] uppercase text-gray-400 block">Out Time</span>
+                    <div class="h-6 mt-1 border-b border-gray-300"></div>
+                </div>
+            </div>
+
+            <!-- Bottom Barcode & Ticket Timestamp -->
+            <div class="pt-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+                <div class="flex items-center space-x-2">
+                    <div class="barcode-strip w-48 h-8 rounded border border-gray-300"></div>
+                    <span class="font-mono text-[11px] text-gray-500 font-bold">{{ order.order_number }}</span>
+                </div>
+                <p class="text-[10px] text-gray-400 font-mono">
+                    FOODMART KITCHEN AUTOMATION SYSTEM • TICKET PRINTED AT: {% now "H:i:s" %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script for view toggle and auto-print -->
+    <script>
+        function toggleViewMode() {
+            const card = document.getElementById('kotCard');
+            const text = document.getElementById('viewModeText');
+            if (card.classList.contains('thermal-mode')) {
+                card.classList.remove('thermal-mode');
+                text.textContent = 'Thermal 80mm Mode';
+            } else {
+                card.classList.add('thermal-mode');
+                text.textContent = 'Standard Sheet Mode';
+            }
+        }
+
+        // Auto print if query parameter ?print=1 is present
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('print') === '1' || urlParams.get('autoprint') === '1') {
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    window.print();
+                }, 400);
+            });
+        }
+    </script>
+</body>
+</html>

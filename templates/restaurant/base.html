@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FoodMart - Fresh & Delicious Food Delivery{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'system-ui', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+        .font-serif {
+            font-family: 'Playfair Display', serif;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f97316;
+            border-radius: 4px;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen">
+
+    <!-- Top Notice Bar -->
+    <div class="bg-gradient-to-r from-brand-700 to-brand-600 text-white text-xs sm:text-sm py-2 px-4">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+                <span><i class="fa-solid fa-clock mr-1.5"></i> Open Daily: 11:00 AM - 11:00 PM</span>
+                <span class="hidden md:inline text-brand-200">|</span>
+                <span class="hidden md:inline"><i class="fa-solid fa-phone mr-1.5"></i> Helpline: +91 98765 43210</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="bg-white/20 px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide">
+                    <i class="fa-solid fa-bolt mr-1 text-yellow-300"></i> Free Delivery on orders over ₹499
+                </span>
+                {% if user.is_authenticated and user.is_staff %}
+                    <a href="{% url 'admin_dashboard' %}" class="bg-amber-400 text-gray-900 hover:bg-amber-300 px-2 py-0.5 rounded text-xs font-bold transition flex items-center">
+                        <i class="fa-solid fa-gauge-high mr-1"></i> Admin Portal
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Bar -->
+    <nav class="bg-white/95 backdrop-blur shadow-sm sticky top-0 z-40 border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Logo -->
+                <a href="{% url 'home' %}" class="flex items-center space-x-3 group">
+                    <div class="w-12 h-12 bg-gradient-to-tr from-brand-600 to-amber-500 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-brand-500/30 group-hover:scale-105 transition-transform duration-300">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                    <div>
+                        <span class="text-2xl font-black tracking-tight text-gray-900">Food<span class="text-brand-600">Mart</span></span>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold -mt-1">Eat Fresh • Dine Royal</p>
+                    </div>
+                </a>
+
+                <!-- Desktop Nav Links -->
+                <div class="hidden md:flex items-center space-x-8 font-medium text-gray-600">
+                    <a href="{% url 'home' %}" class="hover:text-brand-600 transition flex items-center space-x-1 {% if request.resolver_match.url_name == 'home' %}text-brand-600 font-semibold{% endif %}">
+                        <i class="fa-solid fa-house text-sm"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="{% url 'menu' %}" class="hover:text-brand-600 transition flex items-center space-x-1 {% if request.resolver_match.url_name == 'menu' %}text-brand-600 font-semibold{% endif %}">
+                        <i class="fa-solid fa-book-open text-sm"></i>
+                        <span>Menu</span>
+                    </a>
+                    <a href="{% url 'table_reservation' %}" class="hover:text-brand-600 transition flex items-center space-x-1 {% if request.resolver_match.url_name == 'table_reservation' %}text-brand-600 font-semibold{% endif %}">
+                        <i class="fa-solid fa-chair text-sm"></i>
+                        <span>Reserve Table</span>
+                    </a>
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'order_history' %}" class="hover:text-brand-600 transition flex items-center space-x-1 {% if request.resolver_match.url_name == 'order_history' %}text-brand-600 font-semibold{% endif %}">
+                            <i class="fa-solid fa-receipt text-sm"></i>
+                            <span>My Orders</span>
+                        </a>
+                        <a href="{% url 'reservation_history' %}" class="hover:text-brand-600 transition flex items-center space-x-1 {% if request.resolver_match.url_name == 'reservation_history' %}text-brand-600 font-semibold{% endif %}">
+                            <i class="fa-regular fa-calendar-check text-sm"></i>
+                            <span>My Bookings</span>
+                        </a>
+                    {% endif %}
+                </div>
+
+                <!-- Right Action Buttons (Cart + Auth) -->
+                <div class="flex items-center space-x-4">
+                    <!-- Cart Button -->
+                    <a href="{% url 'cart' %}" class="relative bg-brand-50 hover:bg-brand-100 text-brand-700 px-4 py-2.5 rounded-xl font-semibold flex items-center space-x-2 transition border border-brand-200">
+                        <i class="fa-solid fa-bag-shopping text-lg"></i>
+                        <span class="hidden sm:inline">Cart</span>
+                        <span class="bg-brand-600 text-white text-xs font-bold rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center shadow-sm">
+                            {{ cart_count|default:0 }}
+                        </span>
+                        {% if cart_total > 0 %}
+                            <span class="hidden lg:inline text-xs font-bold text-gray-700 ml-1">₹{{ cart_total }}</span>
+                        {% endif %}
+                    </a>
+
+                    <!-- User Account / Login Dropdown -->
+                    {% if user.is_authenticated %}
+                        <div class="relative group">
+                            <button class="flex items-center space-x-2.5 bg-gray-100 hover:bg-gray-200 px-3.5 py-2 rounded-xl text-sm font-semibold text-gray-800 transition">
+                                <div class="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold">
+                                    {{ user.first_name|default:user.username|make_list|first|upper }}
+                                </div>
+                                <span class="hidden sm:inline">{{ user.first_name|default:user.username }}</span>
+                                <i class="fa-solid fa-chevron-down text-xs text-gray-500"></i>
+                            </button>
+                            <div class="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 hidden group-hover:block transition z-50">
+                                <div class="px-4 py-2 border-b border-gray-100">
+                                    <p class="text-xs text-gray-400">Signed in as</p>
+                                    <p class="text-sm font-bold text-gray-900 truncate">{{ user.email|default:user.username }}</p>
+                                </div>
+                                {% if user.is_staff %}
+                                    <a href="{% url 'admin_dashboard' %}" class="flex items-center px-4 py-2.5 text-sm text-brand-700 hover:bg-brand-50 font-bold">
+                                        <i class="fa-solid fa-gauge-high w-5"></i> Admin Dashboard
+                                    </a>
+                                {% endif %}
+                                <a href="{% url 'profile' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    <i class="fa-regular fa-user w-5 text-gray-400"></i> My Profile
+                                </a>
+                                <a href="{% url 'order_history' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    <i class="fa-solid fa-receipt w-5 text-gray-400"></i> My Orders
+                                </a>
+                                <a href="{% url 'reservation_history' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    <i class="fa-regular fa-calendar-check w-5 text-gray-400"></i> My Reservations
+                                </a>
+                                <div class="border-t border-gray-100 my-1"></div>
+                                <a href="{% url 'logout' %}" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium">
+                                    <i class="fa-solid fa-arrow-right-from-bracket w-5"></i> Logout
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="flex items-center space-x-2">
+                            <a href="{% url 'login' %}" class="text-sm font-semibold text-gray-700 hover:text-brand-600 px-3 py-2 transition">
+                                Login
+                            </a>
+                            <a href="{% url 'register' %}" class="text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl shadow-md shadow-brand-600/20 transition">
+                                Sign Up
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Nav Bar bottom strip -->
+        <div class="md:hidden border-t border-gray-100 bg-white px-4 py-2 flex justify-around text-xs font-medium text-gray-600">
+            <a href="{% url 'home' %}" class="flex flex-col items-center py-1 {% if request.resolver_match.url_name == 'home' %}text-brand-600{% endif %}">
+                <i class="fa-solid fa-house text-base"></i>
+                <span class="mt-0.5">Home</span>
+            </a>
+            <a href="{% url 'menu' %}" class="flex flex-col items-center py-1 {% if request.resolver_match.url_name == 'menu' %}text-brand-600{% endif %}">
+                <i class="fa-solid fa-book-open text-base"></i>
+                <span class="mt-0.5">Menu</span>
+            </a>
+            <a href="{% url 'table_reservation' %}" class="flex flex-col items-center py-1 {% if request.resolver_match.url_name == 'table_reservation' %}text-brand-600{% endif %}">
+                <i class="fa-solid fa-chair text-base"></i>
+                <span class="mt-0.5">Reserve</span>
+            </a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'order_history' %}" class="flex flex-col items-center py-1 {% if request.resolver_match.url_name == 'order_history' %}text-brand-600{% endif %}">
+                    <i class="fa-solid fa-receipt text-base"></i>
+                    <span class="mt-0.5">Orders</span>
+                </a>
+            {% else %}
+                <a href="{% url 'login' %}" class="flex flex-col items-center py-1">
+                    <i class="fa-solid fa-user text-base"></i>
+                    <span class="mt-0.5">Login</span>
+                </a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% if messages %}
+        <div class="max-w-4xl mx-auto px-4 mt-4 w-full z-30">
+            {% for message in messages %}
+                <div class="flex items-center justify-between p-4 mb-2 rounded-2xl shadow-sm border 
+                    {% if message.tags == 'success' %}bg-green-50 border-green-200 text-green-800
+                    {% elif message.tags == 'error' %}bg-red-50 border-red-200 text-red-800
+                    {% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800
+                    {% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %}">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid 
+                            {% if message.tags == 'success' %}fa-circle-check text-green-600
+                            {% elif message.tags == 'error' %}fa-circle-exclamation text-red-600
+                            {% elif message.tags == 'warning' %}fa-triangle-exclamation text-amber-600
+                            {% else %}fa-circle-info text-blue-600{% endif %} text-lg"></i>
+                        <span class="text-sm font-medium">{{ message }}</span>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Page Main Content Block -->
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-300 pt-16 pb-12 border-t border-gray-800 mt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+                <!-- Col 1: Brand -->
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white text-xl">
+                            <i class="fa-solid fa-utensils"></i>
+                        </div>
+                        <span class="text-2xl font-black text-white">Food<span class="text-brand-500">Mart</span></span>
+                    </div>
+                    <p class="text-sm text-gray-400 leading-relaxed">
+                        FoodMart brings gourmet meals, sizzling street delicacies, and fine dine-in luxury straight to your cravings. Fast delivery and seamless table booking.
+                    </p>
+                    <div class="flex space-x-3 pt-2">
+                        <a href="#" class="w-9 h-9 rounded-lg bg-gray-800 hover:bg-brand-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-facebook-f"></i></a>
+                        <a href="#" class="w-9 h-9 rounded-lg bg-gray-800 hover:bg-brand-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" class="w-9 h-9 rounded-lg bg-gray-800 hover:bg-brand-600 text-white flex items-center justify-center transition"><i class="fa-brands fa-x-twitter"></i></a>
+                    </div>
+                </div>
+
+                <!-- Col 2: Quick Links -->
+                <div>
+                    <h3 class="text-white font-bold text-base mb-4 tracking-wider uppercase">Quick Links</h3>
+                    <ul class="space-y-2.5 text-sm">
+                        <li><a href="{% url 'home' %}" class="hover:text-brand-400 transition">Home</a></li>
+                        <li><a href="{% url 'menu' %}" class="hover:text-brand-400 transition">Online Menu</a></li>
+                        <li><a href="{% url 'table_reservation' %}" class="hover:text-brand-400 transition">Book a Table</a></li>
+                        <li><a href="{% url 'cart' %}" class="hover:text-brand-400 transition">Shopping Cart</a></li>
+                        {% if user.is_authenticated %}
+                            <li><a href="{% url 'order_history' %}" class="hover:text-brand-400 transition">Order History</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <!-- Col 3: Restaurant Hours -->
+                <div>
+                    <h3 class="text-white font-bold text-base mb-4 tracking-wider uppercase">Dining Hours</h3>
+                    <ul class="space-y-2.5 text-sm text-gray-400">
+                        <li class="flex justify-between">
+                            <span>Monday - Friday</span>
+                            <span class="text-white font-medium">11:00 AM - 11:00 PM</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span>Saturday - Sunday</span>
+                            <span class="text-white font-medium">10:30 AM - 11:30 PM</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span>Online Delivery</span>
+                            <span class="text-emerald-400 font-medium">Always Open</span>
+                        </li>
+                    </ul>
+                    <div class="mt-4 pt-4 border-t border-gray-800">
+                        <p class="text-xs text-brand-400"><i class="fa-solid fa-motorcycle mr-1.5"></i> Average Delivery: 30-40 mins</p>
+                    </div>
+                </div>
+
+                <!-- Col 4: Contact & Location -->
+                <div>
+                    <h3 class="text-white font-bold text-base mb-4 tracking-wider uppercase">Find Us</h3>
+                    <ul class="space-y-3 text-sm text-gray-400">
+                        <li class="flex items-start space-x-3">
+                            <i class="fa-solid fa-location-dot mt-1 text-brand-500"></i>
+                            <span>FoodMart Gourmet Bistro, 42 Heritage Boulevard, City Center</span>
+                        </li>
+                        <li class="flex items-center space-x-3">
+                            <i class="fa-solid fa-phone text-brand-500"></i>
+                            <span>+91 98765 43210</span>
+                        </li>
+                        <li class="flex items-center space-x-3">
+                            <i class="fa-solid fa-envelope text-brand-500"></i>
+                            <span>orders@foodmart.com</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-12 pt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500">
+                <p>&copy; 2026 FoodMart Restaurant Management System. Built for Semester Mini Project.</p>
+                <div class="flex space-x-6 mt-4 sm:mt-0">
+                    <span class="text-gray-400"><i class="fa-solid fa-shield-halved text-brand-500 mr-1.5"></i>Secure & Verified</span>
+                    <span class="text-gray-400"><i class="fa-solid fa-clock text-amber-500 mr-1.5"></i>Open Daily 10 AM - 11 PM</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

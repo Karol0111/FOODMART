@@ -1,0 +1,136 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}{{ item.name }} - FoodMart{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center space-x-2 text-xs text-gray-500 mb-8">
+        <a href="{% url 'home' %}" class="hover:text-brand-600">Home</a>
+        <span>/</span>
+        <a href="{% url 'menu' %}" class="hover:text-brand-600">Menu</a>
+        <span>/</span>
+        <a href="{% url 'menu' %}?category={{ item.category.slug }}" class="hover:text-brand-600">{{ item.category.name }}</a>
+        <span>/</span>
+        <span class="text-gray-800 font-semibold">{{ item.name }}</span>
+    </nav>
+
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 sm:p-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            
+            <!-- Food Image -->
+            <div class="lg:col-span-6 relative rounded-2xl overflow-hidden shadow-lg aspect-square sm:aspect-[4/3]">
+                <img src="{{ item.image_url|default:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80' }}" 
+                     alt="{{ item.name }}" class="w-full h-full object-cover">
+                
+                <!-- Diet Tag -->
+                <div class="absolute top-4 left-4 bg-white/95 backdrop-blur px-3 py-1 rounded-lg flex items-center space-x-2 shadow">
+                    {% if item.is_veg %}
+                        <span class="w-3 h-3 rounded-full bg-green-600 inline-block ring-2 ring-green-200"></span>
+                        <span class="text-xs font-bold text-green-700">100% VEGETARIAN</span>
+                    {% else %}
+                        <span class="w-3 h-3 rounded-full bg-red-600 inline-block ring-2 ring-red-200"></span>
+                        <span class="text-xs font-bold text-red-700">NON-VEGETARIAN</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Details -->
+            <div class="lg:col-span-6 space-y-6">
+                <div>
+                    <span class="bg-brand-50 text-brand-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                        {{ item.category.name }}
+                    </span>
+                    <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mt-2">{{ item.name }}</h1>
+                    <div class="flex items-center space-x-4 mt-3 text-xs text-gray-500">
+                        <span><i class="fa-regular fa-clock text-amber-500 mr-1"></i> Prep: {{ item.preparation_time }}</span>
+                        {% if item.calories %}
+                            <span>•</span>
+                            <span><i class="fa-solid fa-fire text-amber-500 mr-1"></i> {{ item.calories }}</span>
+                        {% endif %}
+                        <span>•</span>
+                        <span class="text-green-600 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i> Available Now</span>
+                    </div>
+                </div>
+
+                <div class="border-t border-b border-gray-100 py-4">
+                    <p class="text-3xl font-black text-gray-900">₹{{ item.price }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Inclusive of all restaurant taxes</p>
+                </div>
+
+                <p class="text-gray-600 leading-relaxed text-sm sm:text-base">{{ item.description }}</p>
+
+                <!-- Add to Cart Form with Quantity selector -->
+                <form action="{% url 'add_to_cart' item.pk %}" method="POST" class="pt-4">
+                    {% csrf_token %}
+                    <div class="flex flex-col sm:flex-row items-center gap-4">
+                        <div class="flex items-center border-2 border-gray-200 rounded-2xl p-1 bg-gray-50 w-full sm:w-auto">
+                            <button type="button" onclick="decreaseQty()" class="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-brand-600 text-lg font-bold">-</button>
+                            <input type="number" id="itemQuantity" name="quantity" value="1" min="1" max="20" class="w-14 text-center bg-transparent font-bold text-gray-800 outline-none text-base">
+                            <button type="button" onclick="increaseQty()" class="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-brand-600 text-lg font-bold">+</button>
+                        </div>
+
+                        <button type="submit" class="w-full sm:flex-grow bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 px-8 rounded-2xl shadow-xl shadow-brand-600/30 transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-bag-shopping"></i>
+                            <span>Add to Cart</span>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="grid grid-cols-2 gap-4 pt-4 text-xs text-gray-500">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-temperature-arrow-up text-brand-600 text-base"></i>
+                        <span>Served Fresh & Steaming Hot</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-box text-brand-600 text-base"></i>
+                        <span>Eco-friendly Tamper-proof Packaging</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Related Dishes -->
+    {% if related_items %}
+        <div class="mt-16">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">You Might Also Like</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {% for rel in related_items %}
+                    <div class="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition group">
+                        <div class="h-40 overflow-hidden">
+                            <img src="{{ rel.image_url|default:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80' }}" 
+                                 alt="{{ rel.name }}" class="w-full h-full object-cover group-hover:scale-105 transition">
+                        </div>
+                        <div class="p-4">
+                            <h3 class="font-bold text-sm text-gray-900 group-hover:text-brand-600 truncate">
+                                <a href="{% url 'food_detail' rel.pk %}">{{ rel.name }}</a>
+                            </h3>
+                            <div class="flex justify-between items-center mt-3">
+                                <span class="font-black text-gray-900 text-sm">₹{{ rel.price }}</span>
+                                <a href="{% url 'food_detail' rel.pk %}" class="text-xs text-brand-600 font-bold hover:underline">View &rarr;</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    function increaseQty() {
+        const input = document.getElementById('itemQuantity');
+        let val = parseInt(input.value) || 1;
+        input.value = val + 1;
+    }
+    function decreaseQty() {
+        const input = document.getElementById('itemQuantity');
+        let val = parseInt(input.value) || 1;
+        if (val > 1) {
+            input.value = val - 1;
+        }
+    }
+</script>
+{% endblock %}

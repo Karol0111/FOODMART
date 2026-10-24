@@ -1,0 +1,323 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}FoodMart - Gourmet Dining & Fast Food Delivery{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative bg-gradient-to-br from-amber-50 via-orange-50/50 to-white overflow-hidden py-16 lg:py-24 border-b border-orange-100/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            <!-- Left Hero Content -->
+            <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+                <div class="inline-flex items-center space-x-2 bg-brand-100 text-brand-800 px-4 py-1.5 rounded-full text-sm font-bold tracking-wide">
+                    <span class="w-2 h-2 rounded-full bg-brand-600 animate-pulse"></span>
+                    <span>Craving Something Delicious Today?</span>
+                </div>
+                
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 tracking-tight leading-tight">
+                    Savor the Flavor, <br/>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-amber-500 font-serif italic">Delivered Fresh</span> to Your Doorstep.
+                </h1>
+
+                <p class="text-lg text-gray-600 max-w-2xl leading-relaxed">
+                    Explore artisanal pizzas, royal biryanis, gourmet burgers, and rich desserts handcrafted by master culinary chefs. Dine in royal ambiance or get lightning-fast doorstep delivery!
+                </p>
+
+                <!-- Action CTA Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
+                    <a href="{% url 'menu' %}" class="w-full sm:w-auto inline-flex items-center justify-center space-x-3 bg-brand-600 hover:bg-brand-700 text-white font-bold px-8 py-4 rounded-2xl shadow-xl shadow-brand-600/30 transition transform hover:-translate-y-0.5">
+                        <i class="fa-solid fa-utensils"></i>
+                        <span>Explore Full Menu</span>
+                    </a>
+                    <a href="{% url 'table_reservation' %}" class="w-full sm:w-auto inline-flex items-center justify-center space-x-3 bg-white hover:bg-gray-50 text-gray-800 font-bold px-8 py-4 rounded-2xl border-2 border-gray-200 shadow-sm transition transform hover:-translate-y-0.5">
+                        <i class="fa-regular fa-calendar-check text-brand-600"></i>
+                        <span>Book a Dining Table</span>
+                    </a>
+                </div>
+
+                <!-- Trust Stats -->
+                <div class="grid grid-cols-3 gap-6 pt-8 border-t border-orange-100/80 max-w-lg mx-auto lg:mx-0">
+                    <div>
+                        <p class="text-3xl font-black text-gray-900">30<span class="text-brand-600">m</span></p>
+                        <p class="text-xs text-gray-500 font-medium mt-0.5">Superfast Delivery</p>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-black text-gray-900">{{ total_food_count|default:"20" }}<span class="text-brand-600">+</span></p>
+                        <p class="text-xs text-gray-500 font-medium mt-0.5">Gourmet Dishes</p>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-black text-gray-900">4.9<span class="text-amber-500">★</span></p>
+                        <p class="text-xs text-gray-500 font-medium mt-0.5">Customer Rating</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Hero Image with Floating Cards -->
+            <div class="lg:col-span-5 relative flex justify-center">
+                <div class="relative w-full max-w-md lg:max-w-none">
+                    <!-- Decorative background ring -->
+                    <div class="absolute -inset-4 bg-gradient-to-tr from-brand-400 to-amber-300 rounded-full blur-3xl opacity-30 -z-10 animate-pulse"></div>
+
+                    <!-- Main hero food image -->
+                    <div class="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+                        <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80" 
+                             alt="Delicious Spread" class="w-full h-96 sm:h-[450px] object-cover hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                        <div class="absolute bottom-6 left-6 right-6 text-white">
+                            <span class="bg-amber-500 text-gray-900 text-xs font-black uppercase px-2.5 py-1 rounded-md">Chef's Signature</span>
+                            <h3 class="text-2xl font-bold mt-2">Finest Culinary Experience</h3>
+                            <p class="text-xs text-gray-200 mt-1">Made with farm-fresh organic ingredients daily.</p>
+                        </div>
+                    </div>
+
+                    <!-- Floating Badge: Delivery -->
+                    <div class="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex items-center space-x-3.5 hidden sm:flex">
+                        <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-semibold uppercase">100% Hygenic</p>
+                            <p class="text-sm font-bold text-gray-900">Contactless Delivery</p>
+                        </div>
+                    </div>
+
+                    <!-- Floating Badge: Table Booking -->
+                    <div class="absolute -top-4 -right-4 bg-white p-3.5 rounded-2xl shadow-xl border border-gray-100 flex items-center space-x-3 hidden sm:flex">
+                        <div class="w-10 h-10 bg-amber-100 text-brand-600 rounded-xl flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-champagne-glasses"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-900">Table Reservation</p>
+                            <p class="text-[11px] text-emerald-600 font-semibold">Instant Confirmation</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- Categories Section -->
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+            <span class="text-xs font-bold tracking-widest uppercase text-brand-600">What Are You Craving?</span>
+            <h2 class="text-3xl font-black text-gray-900 mt-1">Explore by Category</h2>
+            <p class="text-gray-500 text-sm mt-2">Discover hand-crafted culinary dishes across diverse flavors and styles.</p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+            {% for cat in categories %}
+                <a href="{% url 'menu' %}?category={{ cat.slug }}" class="group block bg-gray-50 hover:bg-brand-50 p-6 rounded-3xl border border-gray-100 hover:border-brand-200 text-center transition duration-300 shadow-sm hover:shadow-md">
+                    <div class="w-16 h-16 mx-auto rounded-2xl bg-white group-hover:bg-brand-600 text-brand-600 group-hover:text-white flex items-center justify-center text-2xl shadow-md transition duration-300 mb-4">
+                        <i class="fa-solid {{ cat.icon|default:'fa-utensils' }}"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-900 group-hover:text-brand-700 text-sm sm:text-base">{{ cat.name }}</h3>
+                    <p class="text-xs text-gray-400 mt-1">Explore Dishes &rarr;</p>
+                </a>
+            {% empty %}
+                <p class="col-span-full text-center text-gray-400">Categories will appear here once seeded.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Featured Food Items Grid -->
+<section class="py-16 bg-gray-50/70 border-t border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-12">
+            <div>
+                <span class="text-xs font-bold tracking-widest uppercase text-brand-600">Chef Specials</span>
+                <h2 class="text-3xl font-black text-gray-900 mt-1">Most Popular Dishes</h2>
+                <p class="text-gray-500 text-sm mt-2">Prepared fresh upon order with authentic regional spices.</p>
+            </div>
+            <a href="{% url 'menu' %}" class="mt-4 md:mt-0 text-brand-600 font-bold hover:text-brand-700 inline-flex items-center space-x-2 text-sm group">
+                <span>View Full Menu</span>
+                <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition"></i>
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7">
+            {% for item in featured_items %}
+                <div class="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group">
+                    <!-- Image Box -->
+                    <div class="relative h-48 overflow-hidden">
+                        <img src="{{ item.image_url|default:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80' }}" 
+                             alt="{{ item.name }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                        
+                        <!-- Veg / Non-Veg Indicator -->
+                        <div class="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg flex items-center space-x-1.5 shadow">
+                            {% if item.is_veg %}
+                                <span class="w-2.5 h-2.5 rounded-full bg-green-600 inline-block ring-2 ring-green-200"></span>
+                                <span class="text-[10px] font-bold text-green-700">VEG</span>
+                            {% else %}
+                                <span class="w-2.5 h-2.5 rounded-full bg-red-600 inline-block ring-2 ring-red-200"></span>
+                                <span class="text-[10px] font-bold text-red-700">NON-VEG</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Preparation Time Badge -->
+                        <div class="absolute top-3 right-3 bg-gray-900/80 backdrop-blur text-white text-[11px] font-semibold px-2 py-0.5 rounded-lg">
+                            <i class="fa-regular fa-clock mr-1 text-amber-400"></i>{{ item.preparation_time }}
+                        </div>
+                    </div>
+
+                    <!-- Content Details -->
+                    <div class="p-5 flex-grow flex flex-col justify-between">
+                        <div>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-brand-600">{{ item.category.name }}</span>
+                            <h3 class="font-bold text-gray-900 text-lg group-hover:text-brand-600 transition leading-snug mt-1">
+                                <a href="{% url 'food_detail' item.pk %}">{{ item.name }}</a>
+                            </h3>
+                            <p class="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{{ item.description }}</p>
+                        </div>
+
+                        <!-- Price and Add to Cart Button -->
+                        <div class="pt-5 mt-4 border-t border-gray-100 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs text-gray-400">Price</span>
+                                <p class="text-xl font-black text-gray-900">₹{{ item.price }}</p>
+                            </div>
+
+                            <form action="{% url 'add_to_cart' item.pk %}" method="POST">
+                                {% csrf_token %}
+                                <button type="submit" class="bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white font-bold text-sm px-4 py-2.5 rounded-xl border border-brand-200 hover:border-transparent transition flex items-center space-x-1.5 shadow-sm">
+                                    <i class="fa-solid fa-plus text-xs"></i>
+                                    <span>Add</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Dine-in Table Reservation Callout Banner -->
+<section class="py-16 bg-gray-900 text-white relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#f97316_1px,transparent_1px)] [background-size:16px_16px]"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <div class="lg:col-span-8 space-y-4 text-center lg:text-left">
+                <span class="bg-brand-600/30 text-brand-400 border border-brand-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+                    <i class="fa-solid fa-utensils mr-1.5"></i> Premium Dining Experience
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-black text-white leading-tight">
+                    Planning a Family Dinner, Date Night, or Celebration?
+                </h2>
+                <p class="text-gray-300 text-base max-w-2xl leading-relaxed">
+                    Reserve your dining table online in seconds. Choose your preferred ambiance — Romantic Booth, Window View, or Scenic Outdoor Terrace. No waiting in queues!
+                </p>
+            </div>
+            <div class="lg:col-span-4 flex justify-center lg:justify-end">
+                <a href="{% url 'table_reservation' %}" class="inline-flex items-center space-x-3 bg-gradient-to-r from-brand-600 to-amber-500 hover:from-brand-500 hover:to-amber-400 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-xl shadow-brand-600/30 transition transform hover:-translate-y-1">
+                    <i class="fa-regular fa-calendar-days"></i>
+                    <span>Reserve a Table Now</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why Choose FoodMart -->
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+            <span class="text-xs font-bold tracking-widest uppercase text-brand-600">Our Commitment</span>
+            <h2 class="text-3xl font-black text-gray-900 mt-1">Why People Love FoodMart</h2>
+            <p class="text-gray-500 text-sm mt-2">Serving happiness with authentic taste, premium standards, and lightning speed.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div class="bg-gray-50 p-6 rounded-3xl text-center border border-gray-100">
+                <div class="w-14 h-14 mx-auto bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl mb-4">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 text-lg mb-2">Fresh Ingredients</h3>
+                <p class="text-xs text-gray-500 leading-relaxed">Sourced directly from organic local farms every morning for optimal nutrition and flavor.</p>
+            </div>
+
+            <div class="bg-gray-50 p-6 rounded-3xl text-center border border-gray-100">
+                <div class="w-14 h-14 mx-auto bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center text-2xl mb-4">
+                    <i class="fa-solid fa-motorcycle"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 text-lg mb-2">30 Min Delivery</h3>
+                <p class="text-xs text-gray-500 leading-relaxed">Piping hot food insulated in thermal containers delivered to your door in record time.</p>
+            </div>
+
+            <div class="bg-gray-50 p-6 rounded-3xl text-center border border-gray-100">
+                <div class="w-14 h-14 mx-auto bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl mb-4">
+                    <i class="fa-solid fa-medal"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 text-lg mb-2">Master Chefs</h3>
+                <p class="text-xs text-gray-500 leading-relaxed">Decades of authentic culinary mastery bringing five-star dining straight to your plate.</p>
+            </div>
+
+            <div class="bg-gray-50 p-6 rounded-3xl text-center border border-gray-100">
+                <div class="w-14 h-14 mx-auto bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mb-4">
+                    <i class="fa-solid fa-chair"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 text-lg mb-2">Easy Reservation</h3>
+                <p class="text-xs text-gray-500 leading-relaxed">Effortlessly select your dining table and time slot with real-time instant booking confirmation.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Customer Reviews Section -->
+<section class="py-16 bg-gray-50 border-t border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+            <span class="text-xs font-bold tracking-widest uppercase text-brand-600">Testimonials</span>
+            <h2 class="text-3xl font-black text-gray-900 mt-1">What Our Diners Say</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="bg-white p-7 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+                <div class="flex text-amber-400 text-sm">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                </div>
+                <p class="text-sm text-gray-600 italic">"The Hyderabadi Dum Biryani and Butter Chicken are out of this world! Arrived steaming hot in 25 minutes. FoodMart is our go-to weekend dining spot!"</p>
+                <div class="flex items-center space-x-3 pt-2">
+                    <div class="w-10 h-10 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center">R</div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-900">Rahul S.</p>
+                        <p class="text-xs text-gray-400">Regular Customer</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-7 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+                <div class="flex text-amber-400 text-sm">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                </div>
+                <p class="text-sm text-gray-600 italic">"Booked an anniversary table on the outdoor terrace through the website. Everything was arranged with candlelights and flowers. Fantastic service and courteous staff!"</p>
+                <div class="flex items-center space-x-3 pt-2">
+                    <div class="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center">A</div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-900">Ananya Verma</p>
+                        <p class="text-xs text-gray-400">Dine-in Guest</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-7 rounded-3xl shadow-sm border border-gray-100 space-y-4">
+                <div class="flex text-amber-400 text-sm">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                </div>
+                <p class="text-sm text-gray-600 italic">"The live order tracking page is super smooth. Loved the pizza crust and molten chocolate cake. Seamless experience every single time!"</p>
+                <div class="flex items-center space-x-3 pt-2">
+                    <div class="w-10 h-10 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center">K</div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-900">Karan Mehta</p>
+                        <p class="text-xs text-gray-400">Food Critic</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

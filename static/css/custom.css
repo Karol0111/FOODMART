@@ -1,0 +1,15 @@
+/* Custom additions for FoodMart */
+@media print {
+    nav, footer, .no-print, button, form {
+        display: none !important;
+    }
+    body {
+        background: white !important;
+        color: black !important;
+    }
+    #printable-invoice, #report-section {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        padding: 0 !important;
+    }
+}

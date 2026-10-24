@@ -1,0 +1,141 @@
+{% extends 'restaurant/admin_portal/base_admin.html' %}
+
+{% block title %}Customer Orders - Restaurant Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900">Customer Orders & Deliveries</h1>
+            <p class="text-xs text-gray-500 mt-1">Track live kitchen orders, dispatch deliveries, and update customer statuses.</p>
+        </div>
+    </div>
+
+    <!-- Filters & Search Bar -->
+    <div class="space-y-4">
+        <!-- Status Filter Pills -->
+        <div class="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none text-xs font-semibold">
+            <a href="{% url 'admin_order_list' %}" class="px-3.5 py-2 rounded-xl transition {% if not selected_status %}bg-brand-600 text-white shadow-sm{% else %}bg-white text-gray-600 hover:bg-gray-50 border border-gray-200{% endif %}">
+                All Orders
+            </a>
+            <a href="{% url 'admin_order_list' %}?status=PENDING" class="px-3.5 py-2 rounded-xl transition {% if selected_status == 'PENDING' %}bg-purple-600 text-white shadow-sm{% else %}bg-white text-purple-700 hover:bg-purple-50 border border-gray-200{% endif %}">
+                Pending Placed
+            </a>
+            <a href="{% url 'admin_order_list' %}?status=CONFIRMED" class="px-3.5 py-2 rounded-xl transition {% if selected_status == 'CONFIRMED' %}bg-blue-600 text-white shadow-sm{% else %}bg-white text-blue-700 hover:bg-blue-50 border border-gray-200{% endif %}">
+                Confirmed
+            </a>
+            <a href="{% url 'admin_order_list' %}?status=PREPARING" class="px-3.5 py-2 rounded-xl transition {% if selected_status == 'PREPARING' %}bg-amber-600 text-white shadow-sm{% else %}bg-white text-amber-700 hover:bg-amber-50 border border-gray-200{% endif %}">
+                In Kitchen
+            </a>
+            <a href="{% url 'admin_order_list' %}?status=OUT_FOR_DELIVERY" class="px-3.5 py-2 rounded-xl transition {% if selected_status == 'OUT_FOR_DELIVERY' %}bg-indigo-600 text-white shadow-sm{% else %}bg-white text-indigo-700 hover:bg-indigo-50 border border-gray-200{% endif %}">
+                Out for Delivery
+            </a>
+            <a href="{% url 'admin_order_list' %}?status=DELIVERED" class="px-3.5 py-2 rounded-xl transition {% if selected_status == 'DELIVERED' %}bg-emerald-600 text-white shadow-sm{% else %}bg-white text-emerald-700 hover:bg-emerald-50 border border-gray-200{% endif %}">
+                Delivered
+            </a>
+            <a href="{% url 'admin_order_list' %}?status=CANCELLED" class="px-3.5 py-2 rounded-xl transition {% if selected_status == 'CANCELLED' %}bg-red-600 text-white shadow-sm{% else %}bg-white text-red-700 hover:bg-red-50 border border-gray-200{% endif %}">
+                Cancelled
+            </a>
+        </div>
+
+        <!-- Search Bar -->
+        <form method="GET" action="{% url 'admin_order_list' %}" class="flex items-center space-x-3">
+            {% if selected_status %}<input type="hidden" name="status" value="{{ selected_status }}">{% endif %}
+            <div class="relative flex-grow max-w-md">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                <input type="text" name="q" value="{{ query }}" placeholder="Search by Order #, Customer Name, or Phone..." 
+                       class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-xs outline-none focus:border-brand-500 bg-white">
+            </div>
+            <button type="submit" class="bg-gray-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-gray-900 transition">
+                Search
+            </button>
+            {% if query %}
+                <a href="{% url 'admin_order_list' %}" class="text-xs text-brand-600 hover:underline font-bold">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="bg-gray-50/80 text-gray-500 uppercase tracking-wider border-b border-gray-200 font-bold">
+                        <th class="py-3.5 px-6">Order #</th>
+                        <th class="py-3.5 px-4">Customer Details</th>
+                        <th class="py-3.5 px-4">Items</th>
+                        <th class="py-3.5 px-4">Total Amount</th>
+                        <th class="py-3.5 px-4">Payment</th>
+                        <th class="py-3.5 px-4">Delivery Status</th>
+                        <th class="py-3.5 px-6 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for order in orders %}
+                        <tr class="hover:bg-gray-50/60 transition">
+                            <td class="py-4 px-6">
+                                <span class="font-mono font-bold text-gray-900 text-sm block">{{ order.order_number }}</span>
+                                <span class="text-[10px] text-gray-400">{{ order.created_at|date:"M d, g:i A" }}</span>
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <p class="font-bold text-gray-900">{{ order.customer_name }}</p>
+                                <p class="text-[11px] text-gray-500">{{ order.customer_phone }}</p>
+                                <p class="text-[10px] text-gray-400 truncate max-w-xs">{{ order.delivery_address }}, {{ order.delivery_city }}</p>
+                            </td>
+
+                            <td class="py-4 px-4 text-gray-700">
+                                <span class="font-bold">{{ order.items.count }} items</span>
+                                <p class="text-[10px] text-gray-400 truncate max-w-[150px]">
+                                    {% for item in order.items.all %}
+                                        {{ item.quantity }}x {{ item.food_name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </p>
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <span class="font-black text-gray-900 text-sm">₹{{ order.grand_total }}</span>
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <p class="font-semibold text-gray-800">{{ order.get_payment_method_display }}</p>
+                                <span class="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold 
+                                    {% if order.payment_status == 'PAID' %}bg-green-100 text-green-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                    {{ order.get_payment_status_display }}
+                                </span>
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                    {% if order.order_status == 'DELIVERED' %}bg-green-100 text-green-800
+                                    {% elif order.order_status == 'CANCELLED' %}bg-red-100 text-red-800
+                                    {% elif order.order_status == 'OUT_FOR_DELIVERY' %}bg-indigo-100 text-indigo-800
+                                    {% elif order.order_status == 'PREPARING' %}bg-amber-100 text-amber-800
+                                    {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                    {{ order.get_order_status_display }}
+                                </span>
+                                {% if order.order_status == 'OUT_FOR_DELIVERY' %}
+                                    <p class="text-[10px] text-gray-400 mt-1"><i class="fa-solid fa-motorcycle text-brand-600 mr-1"></i>{{ order.delivery_person_name }}</p>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-4 px-6 text-right whitespace-nowrap">
+                                <a href="{% url 'admin_order_detail' order.pk %}" class="bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white font-bold px-3 py-1.5 rounded-xl border border-brand-200 hover:border-transparent transition inline-block">
+                                    Manage
+                                </a>
+                                <a href="{% url 'order_kitchen_slip' order.order_number %}" target="_blank" title="Print Kitchen Slip (KOT)" class="bg-gray-100 hover:bg-gray-900 text-gray-700 hover:text-white font-bold px-2.5 py-1.5 rounded-xl border border-gray-200 hover:border-transparent transition inline-block ml-1">
+                                    <i class="fa-solid fa-fire-burner text-amber-500"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-gray-400">No orders found matching this filter.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

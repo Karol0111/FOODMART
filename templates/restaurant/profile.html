@@ -1,0 +1,100 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}My Profile - FoodMart{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="mb-8">
+        <h1 class="text-3xl font-black text-gray-900">Your Account Profile</h1>
+        <p class="text-sm text-gray-500 mt-1">Manage personal details, default delivery address, and contact numbers.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Edit Profile Form (8 cols) -->
+        <div class="lg:col-span-8 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-8">
+            <h2 class="text-lg font-bold text-gray-900 mb-6 pb-3 border-b border-gray-100">Personal & Delivery Details</h2>
+
+            <form method="POST" action="{% url 'profile' %}" class="space-y-5">
+                {% csrf_token %}
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">First Name</label>
+                        {{ form.first_name }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Last Name</label>
+                        {{ form.last_name }}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Email Address</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <p class="text-xs text-red-500 mt-1 flex items-center gap-1"><i class="fa-solid fa-circle-exclamation text-[11px]"></i>{{ form.email.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Contact Phone</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                        <p class="text-xs text-red-500 mt-1 flex items-center gap-1"><i class="fa-solid fa-circle-exclamation text-[11px]"></i>{{ form.phone.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Default Delivery Address</label>
+                    {{ form.address }}
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">City</label>
+                    {{ form.city }}
+                </div>
+
+                <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 px-8 rounded-xl shadow-md shadow-brand-600/20 transition text-sm">
+                    Save Changes
+                </button>
+            </form>
+        </div>
+
+        <!-- Right Quick Info Card (4 cols) -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="bg-gradient-to-tr from-brand-600 to-amber-500 rounded-3xl p-6 text-white shadow-xl">
+                <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-3xl font-black mb-4">
+                    {{ user.username|make_list|first|upper }}
+                </div>
+                <h3 class="text-xl font-bold">{{ user.first_name|default:user.username }} {{ user.last_name }}</h3>
+                <p class="text-xs text-brand-100 mt-0.5">{{ user.email }}</p>
+                <div class="mt-4 pt-4 border-t border-white/20 text-xs text-brand-100 flex justify-between">
+                    <span>Member since:</span>
+                    <span class="font-bold text-white">{{ user.date_joined|date:"M Y" }}</span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-3">
+                <h4 class="font-bold text-gray-900 text-sm">Quick Links</h4>
+                <div class="space-y-2 text-xs">
+                    <a href="{% url 'order_history' %}" class="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 text-gray-700 font-medium">
+                        <span><i class="fa-solid fa-receipt mr-2 text-brand-600"></i> My Orders</span>
+                        <i class="fa-solid fa-chevron-right text-gray-400 text-[10px]"></i>
+                    </a>
+                    <a href="{% url 'reservation_history' %}" class="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 text-gray-700 font-medium">
+                        <span><i class="fa-solid fa-chair mr-2 text-brand-600"></i> My Reservations</span>
+                        <i class="fa-solid fa-chevron-right text-gray-400 text-[10px]"></i>
+                    </a>
+                    {% if user.is_staff %}
+                        <a href="{% url 'admin_dashboard' %}" class="flex items-center justify-between p-2.5 rounded-xl bg-brand-50 text-brand-700 font-bold">
+                            <span><i class="fa-solid fa-gauge-high mr-2"></i> Restaurant Admin</span>
+                            <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

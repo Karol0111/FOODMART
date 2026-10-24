@@ -1,0 +1,84 @@
+{% extends 'restaurant/admin_portal/base_admin.html' %}
+
+{% block title %}Customers Directory - Restaurant Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900">Registered Customers</h1>
+            <p class="text-xs text-gray-500 mt-1">Directory of registered food lovers and dining guests.</p>
+        </div>
+        <span class="text-xs font-semibold text-gray-400 bg-white px-3 py-1.5 rounded-xl border border-gray-200">
+            {{ customers|length }} Customers Total
+        </span>
+    </div>
+
+    <!-- Customers Table -->
+    <div class="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="bg-gray-50/80 text-gray-500 uppercase tracking-wider border-b border-gray-200 font-bold">
+                        <th class="py-3.5 px-6">Customer</th>
+                        <th class="py-3.5 px-4">Email</th>
+                        <th class="py-3.5 px-4">Contact Phone</th>
+                        <th class="py-3.5 px-4">Total Orders</th>
+                        <th class="py-3.5 px-4">Table Bookings</th>
+                        <th class="py-3.5 px-6">Joined Date</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for cust in customers %}
+                        <tr class="hover:bg-gray-50/60 transition">
+                            <td class="py-4 px-6">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-sm">
+                                        {{ cust.username|make_list|first|upper }}
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-gray-900 text-sm">{{ cust.first_name }} {{ cust.last_name }}</p>
+                                        <p class="text-[10px] text-gray-400 font-mono">@{{ cust.username }}</p>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="py-4 px-4 text-gray-700 font-medium">
+                                {{ cust.email|default:"Not Provided" }}
+                            </td>
+
+                            <td class="py-4 px-4 text-gray-700">
+                                {% if cust.profile.phone %}
+                                    {{ cust.profile.phone }}
+                                {% else %}
+                                    <span class="text-gray-400 italic">None</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <span class="bg-brand-50 text-brand-700 px-2.5 py-1 rounded-lg font-bold text-xs">
+                                    {{ cust.order_count }} Orders
+                                </span>
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <span class="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg font-bold text-xs">
+                                    {{ cust.reservation_count }} Bookings
+                                </span>
+                            </td>
+
+                            <td class="py-4 px-6 text-gray-500">
+                                {{ cust.date_joined|date:"M d, Y" }}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="py-12 text-center text-gray-400">No registered customers yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

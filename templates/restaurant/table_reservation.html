@@ -1,0 +1,159 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Dine-in Table Reservation - FoodMart{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-b from-amber-50/60 via-white to-gray-50 py-12 border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
+        <span class="text-xs font-bold uppercase tracking-widest text-brand-600 bg-brand-50 border border-brand-200 px-3.5 py-1.5 rounded-full">
+            <i class="fa-solid fa-champagne-glasses mr-1.5"></i> Dine-In Experience
+        </span>
+        <h1 class="text-3xl sm:text-5xl font-black text-gray-900 mt-4 tracking-tight">Reserve Your Dining Table</h1>
+        <p class="text-gray-500 text-base mt-3 leading-relaxed">
+            Skip the waiting queue. Reserve an intimate table, family lounge, or scenic terrace view in advance with instant booking confirmation.
+        </p>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        
+        <!-- Reservation Form (Left 7 cols) -->
+        <div class="lg:col-span-7">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-10">
+                <h2 class="text-xl font-black text-gray-900 mb-6 flex items-center space-x-2.5">
+                    <i class="fa-regular fa-calendar-check text-brand-600"></i>
+                    <span>Booking Details</span>
+                </h2>
+
+                <form method="POST" action="{% url 'table_reservation' %}" class="space-y-6">
+                    {% csrf_token %}
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Full Name *</label>
+                            {{ form.customer_name }}
+                            {% if form.customer_name.errors %}<p class="text-xs text-red-500 mt-1">{{ form.customer_name.errors.0 }}</p>{% endif %}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Contact Number *</label>
+                            {{ form.customer_phone }}
+                            {% if form.customer_phone.errors %}<p class="text-xs text-red-500 mt-1">{{ form.customer_phone.errors.0 }}</p>{% endif %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Email Address *</label>
+                        {{ form.customer_email }}
+                        {% if form.customer_email.errors %}<p class="text-xs text-red-500 mt-1">{{ form.customer_email.errors.0 }}</p>{% endif %}
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Reservation Date *</label>
+                            {{ form.reservation_date }}
+                            {% if form.reservation_date.errors %}<p class="text-xs text-red-500 mt-1">{{ form.reservation_date.errors.0 }}</p>{% endif %}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Dining Time *</label>
+                            {{ form.reservation_time }}
+                            {% if form.reservation_time.errors %}<p class="text-xs text-red-500 mt-1">{{ form.reservation_time.errors.0 }}</p>{% endif %}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">No. of Guests *</label>
+                            {{ form.guest_count }}
+                            {% if form.guest_count.errors %}<p class="text-xs text-red-500 mt-1">{{ form.guest_count.errors.0 }}</p>{% endif %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Select Preferred Table / Section (Optional)</label>
+                        {{ form.table }}
+                        <p class="text-[11px] text-gray-400 mt-1">If unassigned, the restaurant will allocate the best available table for your party size.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Special Requests or Occasion</label>
+                        {{ form.special_requests }}
+                        <p class="text-[11px] text-gray-400 mt-1">e.g., Birthday surprise, anniversary candle setup, wheelchair access.</p>
+                    </div>
+
+                    <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-4 rounded-2xl shadow-xl shadow-brand-600/30 transition flex items-center justify-center space-x-2 text-base">
+                        <i class="fa-solid fa-chair"></i>
+                        <span>Confirm Table Reservation</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Seating Ambiance & Policies (Right 5 cols) -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Table Ambiance Options -->
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-8 space-y-5">
+                <h3 class="text-base font-bold text-gray-900 border-b border-gray-100 pb-3">Available Dining Zones</h3>
+
+                <div class="space-y-3.5 text-xs">
+                    <div class="flex items-start space-x-3 p-3 rounded-2xl bg-amber-50/60 border border-amber-100">
+                        <div class="w-8 h-8 rounded-xl bg-amber-100 text-brand-600 flex items-center justify-center flex-shrink-0 text-sm">
+                            <i class="fa-solid fa-heart"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-900 text-sm">Romantic Booths</p>
+                            <p class="text-gray-500 mt-0.5">Cozy private dining for couples with soft warm lighting.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start space-x-3 p-3 rounded-2xl bg-blue-50/60 border border-blue-100">
+                        <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-sm">
+                            <i class="fa-solid fa-sun"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-900 text-sm">Outdoor Garden Terrace</p>
+                            <p class="text-gray-500 mt-0.5">Open-air breezy seating under fairy lights and lush flora.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start space-x-3 p-3 rounded-2xl bg-emerald-50/60 border border-emerald-100">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 text-sm">
+                            <i class="fa-solid fa-people-roof"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-900 text-sm">Family & Group Lounges</p>
+                            <p class="text-gray-500 mt-0.5">Spacious round tables suitable for 6-10 people celebrations.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start space-x-3 p-3 rounded-2xl bg-purple-50/60 border border-purple-100">
+                        <div class="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0 text-sm">
+                            <i class="fa-solid fa-building-user"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-900 text-sm">Window View</p>
+                            <p class="text-gray-500 mt-0.5">Overlooks the bustling city promenade and heritage fountain.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guidelines Card -->
+            <div class="bg-gray-50 rounded-3xl border border-gray-200/60 p-6 space-y-3 text-xs text-gray-600">
+                <h4 class="font-bold text-gray-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-circle-info text-brand-600"></i>
+                    <span>Reservation Guidelines</span>
+                </h4>
+                <ul class="space-y-2 list-disc list-inside text-gray-500">
+                    <li>Reserved tables are held for up to 15 minutes past the booking time.</li>
+                    <li>No advance deposit or cancellation penalty.</li>
+                    <li>For banquet parties exceeding 15 guests, please call our events desk at +91 98765 43210.</li>
+                </ul>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+{% endblock %}

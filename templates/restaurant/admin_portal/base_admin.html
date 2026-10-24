@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Restaurant Admin - FoodMart{% endblock %}</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Outfit', sans-serif; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-100 text-gray-800 antialiased flex min-h-screen">
+
+    <!-- Admin Sidebar -->
+    <aside class="w-64 bg-gray-900 text-gray-300 flex-shrink-0 flex flex-col justify-between hidden lg:flex">
+        <div>
+            <!-- Admin Logo Header -->
+            <div class="h-20 flex items-center px-6 border-b border-gray-800 space-x-3">
+                <div class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white text-lg font-black shadow-lg shadow-brand-600/30">
+                    <i class="fa-solid fa-utensils"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-black text-white">Food<span class="text-brand-500">Mart</span></span>
+                    <p class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Restaurant Admin</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="p-4 space-y-1 text-sm font-medium">
+                <a href="{% url 'admin_dashboard' %}" class="flex items-center space-x-3 px-4 py-3 rounded-2xl transition {% if request.resolver_match.url_name == 'admin_dashboard' %}bg-brand-600 text-white shadow-md shadow-brand-600/30 font-bold{% else %}hover:bg-gray-800 text-gray-400 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-gauge-high w-5 text-base"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <a href="{% url 'admin_order_list' %}" class="flex items-center space-x-3 px-4 py-3 rounded-2xl transition {% if request.resolver_match.url_name == 'admin_order_list' or request.resolver_match.url_name == 'admin_order_detail' %}bg-brand-600 text-white shadow-md shadow-brand-600/30 font-bold{% else %}hover:bg-gray-800 text-gray-400 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-receipt w-5 text-base"></i>
+                    <span>Customer Orders</span>
+                </a>
+
+                <a href="{% url 'admin_reservation_list' %}" class="flex items-center space-x-3 px-4 py-3 rounded-2xl transition {% if request.resolver_match.url_name == 'admin_reservation_list' %}bg-brand-600 text-white shadow-md shadow-brand-600/30 font-bold{% else %}hover:bg-gray-800 text-gray-400 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-chair w-5 text-base"></i>
+                    <span>Table Bookings</span>
+                </a>
+
+                <a href="{% url 'admin_food_list' %}" class="flex items-center space-x-3 px-4 py-3 rounded-2xl transition {% if request.resolver_match.url_name == 'admin_food_list' or request.resolver_match.url_name == 'admin_food_add' or request.resolver_match.url_name == 'admin_food_edit' %}bg-brand-600 text-white shadow-md shadow-brand-600/30 font-bold{% else %}hover:bg-gray-800 text-gray-400 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-burger w-5 text-base"></i>
+                    <span>Food Menu Items</span>
+                </a>
+
+                <a href="{% url 'admin_category_list' %}" class="flex items-center space-x-3 px-4 py-3 rounded-2xl transition {% if request.resolver_match.url_name == 'admin_category_list' %}bg-brand-600 text-white shadow-md shadow-brand-600/30 font-bold{% else %}hover:bg-gray-800 text-gray-400 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-tags w-5 text-base"></i>
+                    <span>Food Categories</span>
+                </a>
+
+                <a href="{% url 'admin_customer_list' %}" class="flex items-center space-x-3 px-4 py-3 rounded-2xl transition {% if request.resolver_match.url_name == 'admin_customer_list' %}bg-brand-600 text-white shadow-md shadow-brand-600/30 font-bold{% else %}hover:bg-gray-800 text-gray-400 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-users w-5 text-base"></i>
+                    <span>Customers</span>
+                </a>
+
+                <a href="{% url 'admin_reports' %}" class="flex items-center space-x-3 px-4 py-3 rounded-2xl transition {% if request.resolver_match.url_name == 'admin_reports' %}bg-brand-600 text-white shadow-md shadow-brand-600/30 font-bold{% else %}hover:bg-gray-800 text-gray-400 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-chart-pie w-5 text-base"></i>
+                    <span>Sales & Reports</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="p-4 border-t border-gray-800 space-y-2">
+            <a href="{% url 'home' %}" target="_blank" class="flex items-center space-x-2.5 px-4 py-2.5 rounded-xl bg-gray-800/80 hover:bg-gray-800 text-xs text-brand-400 font-bold transition">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                <span>View Customer Website</span>
+            </a>
+            <a href="{% url 'logout' %}" class="flex items-center space-x-2.5 px-4 py-2 text-xs text-red-400 hover:text-red-300 font-semibold transition">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout Admin</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Container -->
+    <div class="flex-grow flex flex-col min-w-0">
+        <!-- Top Admin Header Bar -->
+        <header class="h-20 bg-white border-b border-gray-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+            <div class="flex items-center space-x-4">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Admin Control Panel</span>
+            </div>
+
+            <!-- Mobile Nav Links Pill Strip -->
+            <div class="lg:hidden flex items-center space-x-2 overflow-x-auto text-xs">
+                <a href="{% url 'admin_dashboard' %}" class="px-2.5 py-1.5 rounded-lg bg-gray-100 font-bold">Dashboard</a>
+                <a href="{% url 'admin_order_list' %}" class="px-2.5 py-1.5 rounded-lg bg-gray-100 font-bold">Orders</a>
+                <a href="{% url 'admin_reservation_list' %}" class="px-2.5 py-1.5 rounded-lg bg-gray-100 font-bold">Bookings</a>
+                <a href="{% url 'admin_food_list' %}" class="px-2.5 py-1.5 rounded-lg bg-gray-100 font-bold">Menu</a>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <a href="{% url 'home' %}" class="hidden sm:inline-flex items-center space-x-1.5 text-xs font-bold text-brand-600 bg-brand-50 px-3 py-1.5 rounded-lg hover:bg-brand-100 transition">
+                    <i class="fa-solid fa-globe"></i>
+                    <span>Live Site</span>
+                </a>
+
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-gray-900 text-amber-400 flex items-center justify-center font-black text-sm">
+                        {{ user.username|make_list|first|upper }}
+                    </div>
+                    <div class="hidden sm:block text-left text-xs">
+                        <p class="font-bold text-gray-900">{{ user.username }}</p>
+                        <p class="text-[10px] text-gray-400">Store Manager</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hidden container for Django flash messages (rendered as floating toasts) -->
+        {% if messages %}
+            <div id="djangoFlashMessages" class="hidden">
+                {% for message in messages %}
+                    <div class="django-flash-item" data-tag="{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Admin Page Content -->
+        <main class="p-6 lg:p-8 flex-grow">
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Floating Toast Notifications Container -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Reusable Modern Confirmation / Delete Modal -->
+    <div id="confirmDeleteModal" class="fixed inset-0 bg-gray-950/60 backdrop-blur-xs z-[9998] flex items-center justify-center p-4 transition-all duration-200 opacity-0 pointer-events-none">
+        <div id="confirmModalCard" class="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-gray-100 transform scale-95 transition-all duration-200">
+            <div class="text-center">
+                <div id="confirmModalIconWrapper" class="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center text-2xl mx-auto shadow-inner mb-4">
+                    <i id="confirmModalIcon" class="fa-solid fa-trash-can"></i>
+                </div>
+                <h3 id="confirmModalTitle" class="text-xl font-black text-gray-900">Delete Dish?</h3>
+                <p id="confirmModalMessage" class="text-xs text-gray-500 mt-2 leading-relaxed">
+                    Are you sure you want to delete this dish? This action cannot be undone.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mt-6">
+                <button type="button" onclick="closeConfirmModal(true)" 
+                        class="w-full py-3 px-4 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition cursor-pointer">
+                    Cancel
+                </button>
+                <button id="confirmModalSubmitBtn" type="button" onclick="executeConfirmAction()" 
+                        class="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/30 transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span id="confirmModalActionText">Yes, Delete</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast & Modal Core Scripts -->
+    <script>
+        function getCsrfToken() {
+            const input = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (input) return input.value;
+            const match = document.cookie.match(/csrftoken=([^;]+)/);
+            return match ? match[1] : '';
+        }
+
+        function showToast(title, message, type = 'success', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = 'toast-item pointer-events-auto bg-white rounded-2xl shadow-xl border border-gray-100 p-4 flex items-start space-x-3.5 transform transition-all duration-300 translate-y-[-10px] opacity-0 max-w-sm relative overflow-hidden';
+
+            let iconClass = 'fa-solid fa-circle-check';
+            let iconBg = 'bg-emerald-50 text-emerald-600';
+            let progressBarColor = 'bg-emerald-500';
+
+            if (type === 'delete' || type === 'error') {
+                iconClass = 'fa-solid fa-trash-can';
+                iconBg = 'bg-red-50 text-red-600';
+                progressBarColor = 'bg-red-500';
+            } else if (type === 'warning') {
+                iconClass = 'fa-solid fa-triangle-exclamation';
+                iconBg = 'bg-amber-50 text-amber-600';
+                progressBarColor = 'bg-amber-500';
+            } else if (type === 'info') {
+                iconClass = 'fa-solid fa-circle-info';
+                iconBg = 'bg-blue-50 text-blue-600';
+                progressBarColor = 'bg-blue-500';
+            }
+
+            toast.innerHTML = `
+                <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0 text-base shadow-xs">
+                    <i class="${iconClass}"></i>
+                </div>
+                <div class="flex-grow pr-2">
+                    <h4 class="text-xs font-bold text-gray-900 leading-snug">${title}</h4>
+                    <p class="text-xs text-gray-600 mt-0.5 leading-tight">${message}</p>
+                </div>
+                <button type="button" class="text-gray-400 hover:text-gray-600 text-sm p-1 cursor-pointer" onclick="dismissToast(this.closest('.toast-item'))">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-100">
+                    <div class="h-full ${progressBarColor} toast-progress-bar" style="width: 100%; transition: width ${duration}ms linear;"></div>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-[-10px]', 'opacity-0');
+                toast.classList.add('translate-y-0', 'opacity-100');
+                const bar = toast.querySelector('.toast-progress-bar');
+                if (bar) {
+                    requestAnimationFrame(() => {
+                        bar.style.width = '0%';
+                    });
+                }
+            });
+
+            // Auto dismiss
+            const timer = setTimeout(() => {
+                dismissToast(toast);
+            }, duration);
+
+            toast._timer = timer;
+        }
+
+        function dismissToast(toast) {
+            if (!toast) return;
+            if (toast._timer) clearTimeout(toast._timer);
+            toast.classList.remove('translate-y-0', 'opacity-100');
+            toast.classList.add('translate-y-[-10px]', 'opacity-0');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }
+
+        let pendingModalAction = null;
+
+        function showConfirmModal(opts) {
+            const modal = document.getElementById('confirmDeleteModal');
+            const card = document.getElementById('confirmModalCard');
+            if (!modal || !card) return;
+
+            document.getElementById('confirmModalTitle').textContent = opts.title || 'Confirm Action';
+            document.getElementById('confirmModalMessage').innerHTML = opts.message || 'Are you sure you want to proceed?';
+            document.getElementById('confirmModalActionText').textContent = opts.confirmText || 'Yes, Delete';
+            
+            const icon = document.getElementById('confirmModalIcon');
+            const iconWrapper = document.getElementById('confirmModalIconWrapper');
+            icon.className = `fa-solid ${opts.icon || 'fa-trash-can'}`;
+            iconWrapper.className = `w-16 h-16 rounded-2xl ${opts.iconBg || 'bg-red-50 text-red-600'} flex items-center justify-center text-2xl mx-auto shadow-inner mb-4`;
+
+            const submitBtn = document.getElementById('confirmModalSubmitBtn');
+            submitBtn.className = `w-full py-3 px-4 rounded-xl text-xs font-bold ${opts.confirmClass || 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30'} transition flex items-center justify-center space-x-1.5 cursor-pointer`;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="fa-solid ${opts.icon || 'fa-trash-can'}"></i> <span>${opts.confirmText || 'Yes, Delete'}</span>`;
+
+            pendingModalAction = opts.onConfirm;
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-95');
+            card.classList.add('scale-100');
+        }
+
+        function closeConfirmModal(notifyCancel = false) {
+            const modal = document.getElementById('confirmDeleteModal');
+            const card = document.getElementById('confirmModalCard');
+            if (!modal || !card) return;
+
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-100');
+            card.classList.add('scale-95');
+            pendingModalAction = null;
+
+            if (notifyCancel) {
+                showToast('Action Cancelled', 'Item was kept safely.', 'info', 2500);
+            }
+        }
+
+        function executeConfirmAction() {
+            if (typeof pendingModalAction === 'function') {
+                const btn = document.getElementById('confirmModalSubmitBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Deleting...</span>';
+                pendingModalAction();
+            }
+        }
+
+        // Close on ESC key or backdrop click
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeConfirmModal(false);
+        });
+        document.getElementById('confirmDeleteModal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeConfirmModal(false);
+        });
+
+        // Initialize Django flash messages as toasts on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const flashContainer = document.getElementById('djangoFlashMessages');
+            if (flashContainer) {
+                const items = flashContainer.querySelectorAll('.django-flash-item');
+                items.forEach((item, index) => {
+                    const tag = item.dataset.tag || 'success';
+                    const text = item.textContent.trim();
+                    let title = 'Notification';
+                    let type = 'success';
+                    if (tag.includes('success')) {
+                        if (text.toLowerCase().includes('delete')) {
+                            title = 'Item Deleted';
+                            type = 'delete';
+                        } else {
+                            title = 'Success';
+                            type = 'success';
+                        }
+                    } else if (tag.includes('error')) {
+                        title = 'Error';
+                        type = 'error';
+                    } else if (tag.includes('warning')) {
+                        title = 'Warning';
+                        type = 'warning';
+                    } else {
+                        title = 'Information';
+                        type = 'info';
+                    }
+                    setTimeout(() => {
+                        showToast(title, text, type);
+                    }, index * 200);
+                });
+            }
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,180 @@
+{% extends 'restaurant/admin_portal/base_admin.html' %}
+
+{% block title %}Food Menu Items - Restaurant Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+    <!-- Top Action Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900">Food Menu Items</h1>
+            <p class="text-xs text-gray-500 mt-1">Manage restaurant dishes, pricing, dietary flags, and availability.</p>
+        </div>
+        <a href="{% url 'admin_food_add' %}" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-brand-600/20 flex items-center space-x-2 self-start sm:self-auto transition">
+            <i class="fa-solid fa-plus"></i>
+            <span>Add New Dish</span>
+        </a>
+    </div>
+
+    <!-- Filters Strip -->
+    <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between">
+        <form method="GET" action="{% url 'admin_food_list' %}" class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div class="relative flex-grow sm:flex-grow-0 sm:w-64">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                <input type="text" name="q" value="{{ query }}" placeholder="Search dish name..." 
+                       class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-xs outline-none focus:border-brand-500">
+            </div>
+
+            <select name="category" onchange="this.form.submit()" class="bg-white border border-gray-200 text-xs font-semibold px-3 py-2 rounded-xl text-gray-700 outline-none">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="diet" onchange="this.form.submit()" class="bg-white border border-gray-200 text-xs font-semibold px-3 py-2 rounded-xl text-gray-700 outline-none">
+                <option value="">All Diets</option>
+                <option value="veg" {% if selected_diet == 'veg' %}selected{% endif %}>Vegetarian Only</option>
+                <option value="non-veg" {% if selected_diet == 'non-veg' %}selected{% endif %}>Non-Veg Only</option>
+            </select>
+
+            {% if query or selected_category or selected_diet %}
+                <a href="{% url 'admin_food_list' %}" class="text-xs text-brand-600 hover:underline font-bold">Clear</a>
+            {% endif %}
+        </form>
+
+        <span class="text-xs text-gray-400 font-semibold self-end md:self-auto">{{ items|length }} dishes total</span>
+    </div>
+
+    <!-- Table of Food Items -->
+    <div class="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="bg-gray-50/80 text-gray-500 uppercase tracking-wider border-b border-gray-200 font-bold">
+                        <th class="py-3.5 px-6">Dish</th>
+                        <th class="py-3.5 px-4">Category</th>
+                        <th class="py-3.5 px-4">Price</th>
+                        <th class="py-3.5 px-4">Diet</th>
+                        <th class="py-3.5 px-4">Prep Time</th>
+                        <th class="py-3.5 px-4">Availability</th>
+                        <th class="py-3.5 px-6 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for item in items %}
+                        <tr id="dish-row-{{ item.pk }}" class="hover:bg-gray-50/60 transition">
+                            <!-- Image + Title -->
+                            <td class="py-3.5 px-6">
+                                <div class="flex items-center space-x-3">
+                                    <img src="{{ item.image_url|default:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=150&q=80' }}" 
+                                         alt="{{ item.name }}" class="w-12 h-12 rounded-xl object-cover border border-gray-100 shadow-xs">
+                                    <div>
+                                        <p class="font-bold text-gray-900 text-sm">{{ item.name }}</p>
+                                        <p class="text-[11px] text-gray-400 line-clamp-1 max-w-xs">{{ item.description }}</p>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="py-3.5 px-4 font-semibold text-gray-700">
+                                {{ item.category.name }}
+                            </td>
+
+                            <td class="py-3.5 px-4 font-black text-gray-900 text-sm">
+                                ₹{{ item.price }}
+                            </td>
+
+                            <td class="py-3.5 px-4">
+                                {% if item.is_veg %}
+                                    <span class="inline-flex items-center space-x-1 text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-600 inline-block"></span>
+                                        <span>Veg</span>
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center space-x-1 text-red-700 bg-red-50 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-red-600 inline-block"></span>
+                                        <span>Non-Veg</span>
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-3.5 px-4 text-gray-500">
+                                {{ item.preparation_time }}
+                            </td>
+
+                            <td class="py-3.5 px-4">
+                                {% if item.is_available %}
+                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">In Stock</span>
+                                {% else %}
+                                    <span class="px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold text-[10px]">Sold Out</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-3.5 px-6 text-right space-x-2">
+                                <a href="{% url 'admin_food_edit' item.pk %}" class="text-brand-600 hover:text-brand-800 font-bold px-2.5 py-1 rounded-lg bg-brand-50 hover:bg-brand-100 transition inline-block">
+                                    Edit
+                                </a>
+                                <button type="button" 
+                                        onclick="triggerDeleteDish('{% url 'admin_food_delete' item.pk %}', '{{ item.name|escapejs }}', 'dish-row-{{ item.pk }}')" 
+                                        class="text-red-500 hover:text-red-700 font-bold px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition inline-block cursor-pointer">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-gray-400">No food items matching your filters.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function triggerDeleteDish(deleteUrl, dishName, rowId) {
+    showConfirmModal({
+        title: 'Delete Dish?',
+        message: `Are you sure you want to delete <span class="font-bold text-gray-900">${dishName}</span>? This will permanently remove the dish from the active food menu.`,
+        confirmText: 'Yes, Delete Dish',
+        confirmClass: 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30',
+        icon: 'fa-trash-can',
+        iconBg: 'bg-red-50 text-red-600',
+        onConfirm: function() {
+            fetch(deleteUrl, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(res => {
+                if (res.ok) return res.json().catch(() => ({ success: true, message: `Deleted dish '${dishName}'.` }));
+                throw new Error('Server error');
+            })
+            .then(data => {
+                closeConfirmModal(false);
+                const row = document.getElementById(rowId);
+                if (row) {
+                    row.classList.add('transition-all', 'duration-300', 'opacity-0', 'scale-95', 'bg-red-50');
+                    setTimeout(() => {
+                        row.remove();
+                        const tbody = document.querySelector('tbody');
+                        if (tbody && tbody.querySelectorAll('tr').length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-gray-400">No food items matching your filters.</td></tr>';
+                        }
+                    }, 300);
+                }
+                showToast('Dish Deleted', data.message || `Deleted dish '${dishName}'.`, 'delete');
+            })
+            .catch(() => {
+                window.location.href = deleteUrl;
+            });
+        }
+    });
+}
+</script>
+{% endblock %}

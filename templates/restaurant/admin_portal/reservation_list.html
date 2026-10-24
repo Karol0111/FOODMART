@@ -1,0 +1,128 @@
+{% extends 'restaurant/admin_portal/base_admin.html' %}
+
+{% block title %}Table Reservations - Restaurant Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900">Table Reservations</h1>
+            <p class="text-xs text-gray-500 mt-1">Review dining table bookings, allocate seating, and confirm or cancel requests.</p>
+        </div>
+    </div>
+
+    <!-- Filters Strip -->
+    <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between text-xs">
+        <form method="GET" action="{% url 'admin_reservation_list' %}" class="flex flex-wrap items-center gap-3">
+            <select name="status" onchange="this.form.submit()" class="bg-white border border-gray-200 font-semibold px-3 py-2 rounded-xl text-gray-700 outline-none">
+                <option value="">All Statuses</option>
+                <option value="PENDING" {% if selected_status == 'PENDING' %}selected{% endif %}>Pending Confirmation</option>
+                <option value="CONFIRMED" {% if selected_status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option>
+                <option value="CANCELLED" {% if selected_status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                <option value="COMPLETED" {% if selected_status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+            </select>
+
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-400">Date:</span>
+                <input type="date" name="date" value="{{ selected_date }}" onchange="this.form.submit()" 
+                       class="border border-gray-200 px-3 py-1.5 rounded-xl font-semibold outline-none text-xs">
+            </div>
+
+            {% if selected_status or selected_date %}
+                <a href="{% url 'admin_reservation_list' %}" class="text-brand-600 hover:underline font-bold">Clear Filters</a>
+            {% endif %}
+        </form>
+
+        <span class="text-gray-400 font-semibold">{{ reservations|length }} Bookings Total</span>
+    </div>
+
+    <!-- Reservations Table -->
+    <div class="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="bg-gray-50/80 text-gray-500 uppercase tracking-wider border-b border-gray-200 font-bold">
+                        <th class="py-3.5 px-6">Booking Code</th>
+                        <th class="py-3.5 px-4">Customer Details</th>
+                        <th class="py-3.5 px-4">Date & Time</th>
+                        <th class="py-3.5 px-4">Party Size</th>
+                        <th class="py-3.5 px-4">Allocated Table</th>
+                        <th class="py-3.5 px-4">Status</th>
+                        <th class="py-3.5 px-6 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for res in reservations %}
+                        <tr class="hover:bg-gray-50/60 transition">
+                            <td class="py-4 px-6 font-mono font-bold text-gray-900">
+                                {{ res.reservation_code }}
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <p class="font-bold text-gray-900">{{ res.customer_name }}</p>
+                                <p class="text-[11px] text-gray-500">{{ res.customer_phone }}</p>
+                                <p class="text-[10px] text-gray-400">{{ res.customer_email }}</p>
+                                {% if res.special_requests %}
+                                    <p class="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded mt-1 max-w-xs truncate">
+                                        Note: {{ res.special_requests }}
+                                    </p>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <p class="font-bold text-gray-800">{{ res.reservation_date|date:"D, M d, Y" }}</p>
+                                <p class="text-brand-600 font-semibold">{{ res.reservation_time|time:"g:i A" }}</p>
+                            </td>
+
+                            <td class="py-4 px-4 font-bold text-gray-900">
+                                {{ res.guest_count }} Guests
+                            </td>
+
+                            <td class="py-4 px-4">
+                                {% if res.table %}
+                                    <span class="font-bold text-gray-800">{{ res.table.table_number }}</span>
+                                    <span class="text-[10px] text-gray-400 block">{{ res.table.location }}</span>
+                                {% else %}
+                                    <span class="text-gray-400 italic">Not Assigned</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-4 px-4">
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                    {% if res.status == 'CONFIRMED' %}bg-green-100 text-green-800
+                                    {% elif res.status == 'CANCELLED' %}bg-red-100 text-red-800
+                                    {% elif res.status == 'COMPLETED' %}bg-gray-100 text-gray-800
+                                    {% else %}bg-amber-100 text-amber-800{% endif %}">
+                                    {{ res.get_status_display }}
+                                </span>
+                            </td>
+
+                            <td class="py-4 px-6 text-right space-x-1.5">
+                                {% if res.status != 'CONFIRMED' and res.status != 'CANCELLED' %}
+                                    <a href="{% url 'admin_reservation_update_status' res.pk 'CONFIRMED' %}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] transition inline-block">
+                                        Confirm
+                                    </a>
+                                {% endif %}
+                                {% if res.status != 'CANCELLED' %}
+                                    <a href="{% url 'admin_reservation_update_status' res.pk 'CANCELLED' %}" onclick="return confirm('Cancel this reservation?');" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2.5 py-1.5 rounded-lg text-[10px] transition inline-block">
+                                        Cancel
+                                    </a>
+                                {% endif %}
+                                {% if res.status == 'CONFIRMED' %}
+                                    <a href="{% url 'admin_reservation_update_status' res.pk 'COMPLETED' %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1.5 rounded-lg text-[10px] transition inline-block">
+                                        Mark Completed
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-gray-400">No reservations found matching this query.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

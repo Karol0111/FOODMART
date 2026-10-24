@@ -1,0 +1,180 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}FoodMart - Our Culinary Menu{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-b from-amber-50/50 to-white py-10 border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto">
+            <span class="text-xs font-bold tracking-widest uppercase text-brand-600">Fresh & Hot Everyday</span>
+            <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mt-1">Our Delicious Menu</h1>
+            <p class="text-gray-500 text-sm mt-2">Filter by dietary preference, explore categories, and add your favorite dishes to cart.</p>
+        </div>
+
+        <!-- Search Bar & Filters Form -->
+        <form method="GET" action="{% url 'menu' %}" class="mt-8 max-w-3xl mx-auto">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-grow">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" name="q" value="{{ search_query }}" 
+                           placeholder="Search dishes (e.g. Biryani, Pizza, Tikka)..." 
+                           class="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-gray-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none bg-white shadow-sm text-sm">
+                </div>
+
+                <!-- Preserve existing category or diet if any -->
+                {% if selected_category %}
+                    <input type="hidden" name="category" value="{{ selected_category.slug }}">
+                {% endif %}
+                {% if selected_diet %}
+                    <input type="hidden" name="diet" value="{{ selected_diet }}">
+                {% endif %}
+
+                <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-7 py-3.5 rounded-2xl shadow-md shadow-brand-600/20 transition flex items-center justify-center space-x-2 text-sm">
+                    <span>Search</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <!-- Category & Diet Tabs Strip -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-8 border-b border-gray-200">
+        
+        <!-- Category Pills -->
+        <div class="flex items-center space-x-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
+            <a href="{% url 'menu' %}{% if selected_diet %}?diet={{ selected_diet }}{% endif %}" 
+               class="whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition {% if not selected_category %}bg-brand-600 text-white shadow-sm{% else %}bg-gray-100 hover:bg-gray-200 text-gray-700{% endif %}">
+                All Categories
+            </a>
+            {% for cat in categories %}
+                <a href="{% url 'menu' %}?category={{ cat.slug }}{% if selected_diet %}&diet={{ selected_diet }}{% endif %}" 
+                   class="whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-1.5 {% if selected_category.slug == cat.slug %}bg-brand-600 text-white shadow-sm{% else %}bg-gray-100 hover:bg-gray-200 text-gray-700{% endif %}">
+                    <i class="fa-solid {{ cat.icon }} text-xs"></i>
+                    <span>{{ cat.name }}</span>
+                </a>
+            {% endfor %}
+        </div>
+
+        <!-- Right Side: Veg / Non-Veg Filter + Price Sort -->
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Veg / Non-Veg Pills -->
+            <div class="flex bg-gray-100 p-1 rounded-xl text-xs font-bold">
+                <a href="{% url 'menu' %}?{% if selected_category %}category={{ selected_category.slug }}&{% endif %}{% if search_query %}q={{ search_query }}&{% endif %}" 
+                   class="px-3 py-1.5 rounded-lg transition {% if not selected_diet %}bg-white text-gray-900 shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                    All
+                </a>
+                <a href="{% url 'menu' %}?diet=veg{% if selected_category %}&category={{ selected_category.slug }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1 {% if selected_diet == 'veg' %}bg-green-600 text-white shadow-sm{% else %}text-gray-600 hover:text-green-700{% endif %}">
+                    <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+                    <span>Veg</span>
+                </a>
+                <a href="{% url 'menu' %}?diet=non-veg{% if selected_category %}&category={{ selected_category.slug }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="px-3 py-1.5 rounded-lg transition flex items-center space-x-1 {% if selected_diet == 'non-veg' %}bg-red-600 text-white shadow-sm{% else %}text-gray-600 hover:text-red-700{% endif %}">
+                    <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+                    <span>Non-Veg</span>
+                </a>
+            </div>
+
+            <!-- Sort dropdown -->
+            <form method="GET" action="{% url 'menu' %}" class="flex items-center">
+                {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category.slug }}">{% endif %}
+                {% if selected_diet %}<input type="hidden" name="diet" value="{{ selected_diet }}">{% endif %}
+                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                <select name="sort" onchange="this.form.submit()" class="bg-white border border-gray-200 text-xs font-semibold px-3 py-2 rounded-xl text-gray-700 outline-none focus:border-brand-500">
+                    <option value="">Sort: Featured</option>
+                    <option value="price_asc" {% if selected_sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_desc" {% if selected_sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="name" {% if selected_sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                </select>
+            </form>
+        </div>
+
+    </div>
+
+    <!-- Results Counter -->
+    <div class="py-4 flex justify-between items-center text-xs text-gray-500">
+        <p>Showing <span class="font-bold text-gray-800">{{ items|length }}</span> dishes</p>
+        {% if search_query or selected_category or selected_diet %}
+            <a href="{% url 'menu' %}" class="text-brand-600 hover:underline font-semibold flex items-center space-x-1">
+                <i class="fa-solid fa-rotate-left text-[10px]"></i>
+                <span>Reset Filters</span>
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Food Items Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-7 mt-2">
+        {% for item in items %}
+            <div class="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group">
+                <!-- Image Box -->
+                <div class="relative h-48 overflow-hidden bg-gray-100">
+                    <img src="{{ item.image_url|default:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80' }}" 
+                         alt="{{ item.name }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                    
+                    <!-- Veg / Non-Veg Indicator -->
+                    <div class="absolute top-3 left-3 bg-white/95 backdrop-blur px-2 py-1 rounded-lg flex items-center space-x-1.5 shadow">
+                        {% if item.is_veg %}
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-600 inline-block ring-2 ring-green-200"></span>
+                            <span class="text-[10px] font-bold text-green-700">VEG</span>
+                        {% else %}
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-600 inline-block ring-2 ring-red-200"></span>
+                            <span class="text-[10px] font-bold text-red-700">NON-VEG</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Prep Time -->
+                    <div class="absolute top-3 right-3 bg-gray-900/80 backdrop-blur text-white text-[11px] font-semibold px-2 py-0.5 rounded-lg">
+                        <i class="fa-regular fa-clock mr-1 text-amber-400"></i>{{ item.preparation_time }}
+                    </div>
+
+                    {% if item.calories %}
+                        <div class="absolute bottom-3 left-3 bg-white/90 backdrop-blur text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                            <i class="fa-solid fa-fire-flame-curved text-amber-500 mr-1"></i>{{ item.calories }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Content -->
+                <div class="p-5 flex-grow flex flex-col justify-between">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-brand-600">{{ item.category.name }}</span>
+                        <h3 class="font-bold text-gray-900 text-lg group-hover:text-brand-600 transition leading-snug mt-1">
+                            <a href="{% url 'food_detail' item.pk %}">{{ item.name }}</a>
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{{ item.description }}</p>
+                    </div>
+
+                    <!-- Price and Add to Cart Form -->
+                    <div class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] text-gray-400">Price</span>
+                            <p class="text-xl font-black text-gray-900">₹{{ item.price }}</p>
+                        </div>
+
+                        <form action="{% url 'add_to_cart' item.pk %}" method="POST" class="flex items-center space-x-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white font-bold text-sm px-4 py-2.5 rounded-xl border border-brand-200 hover:border-transparent transition flex items-center space-x-1.5 shadow-sm">
+                                <i class="fa-solid fa-cart-plus text-xs"></i>
+                                <span>Add</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-span-full py-16 text-center bg-white rounded-3xl border border-dashed border-gray-300">
+                <div class="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto text-2xl mb-3">
+                    <i class="fa-solid fa-bowl-food"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800">No dishes found</h3>
+                <p class="text-xs text-gray-500 mt-1 max-w-sm mx-auto">We couldn't find any dishes matching your filters. Try selecting a different category or resetting filters.</p>
+                <a href="{% url 'menu' %}" class="inline-block mt-4 bg-brand-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow">
+                    Clear All Filters
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
